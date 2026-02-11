@@ -1,0 +1,23 @@
+{
+  "name": "camunda-navigator",
+  "version": "1.0.0",
+  "description": "IDE-style navigation for Camunda Modeler: Go to definition (BPMN/DMN) and global search.",
+  "main": "index.js",
+  "keywords": [
+    "camunda",
+    "camunda-modeler-plugin",
+    "bpmn",
+    "dmn",
+    "navigation"
+  ],
+  "author": {
+    "name": "Moumen Alnemrat",
+    "email": "momen.nemrat@gmail.com",
+    "url": "https://alnemrat.com"
+  },
+  "license": "MIT",
+  "type": "commonjs",
+  "developer": {
+    "name": "Moumen Alnemrat"
+  }
+}

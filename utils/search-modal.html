@@ -1,0 +1,105 @@
+<!-- modal.html -->
+
+<div class="search-box">
+  <input list="items" id="search-input" placeholder="Search models..." autofocus>
+  <datalist id="items"></datalist>
+</div>
+
+<script>
+    const { ipcRenderer } = require('electron');
+
+    const list = document.getElementById('items');
+    let items = [];
+
+    /*
+    document.getElementById('search-input').addEventListener('input', (e) => {
+        //debugger;
+        //console.log('input event called, with value:', e.target.value, 'full object:', e);
+    });
+    //*/
+
+    document.getElementById('search-input').addEventListener('change', (e) => {
+        //debugger;
+        console.log('change event called, with value:', e.target.value, 'full object:', e);
+
+        const selected = items.find(item => item.name === e.target.value);
+        if (selected){
+            console.log("Selected ID:", selected.path);
+            ipcRenderer.send('search-modal-action', selected.path);
+        }
+    });
+
+    (async () => {
+    try {
+        debugger;
+        
+        let models = [];
+        models = await ipcRenderer.invoke('get-models', null);
+
+        console.log(models);
+        
+        (models?? []).forEach(model => {
+            
+            const ready =(model.ids?? []).concat(model.names?? []).map(name => {
+                return {
+                    name: name,
+                    path: model.path
+                }
+            });
+
+            items = items.concat(ready);
+        });
+
+        
+
+        items.forEach(item => {
+            let option = document.createElement('option');
+            option.value = item.name; // What the user sees/types
+            option.dataset.id = item.path; // Store ID for later
+            list.appendChild(option);
+        });
+
+        
+        
+        //ipcRenderer.send('search-modal-action', action);
+
+
+    } catch (error) {
+        console.error("Error fetching data:", error);
+    }
+    })();
+
+    
+
+</script>
+
+<style>
+    body {
+    margin: 0;
+    padding: 20px;
+    background-color: transparent;
+    font-family: -apple-system, system-ui, "Segoe UI", Roboto, Helvetica;
+  }
+
+  .search-box {
+    display: flex;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 1px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    border: 1px solid #d1d1d1;
+  }
+
+  #search-input {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 16px;
+    border: none;
+    outline: none;
+    color: #333;
+  }
+
+  #search-input::placeholder {
+    color: #aaa;
+  }
+</style>
