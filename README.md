@@ -1,4 +1,4 @@
-# Camunda Navigator
+# Camunda Modeler Navigator Plugin
 
 [![Camunda Modeler 5.x+](https://img.shields.io/badge/Camunda%20Modeler-5.x+-blue)](https://camunda.com/download/modeler/)
 [![Camunda 8](https://img.shields.io/badge/Camunda%208-supported-green)](https://docs.camunda.io/)
