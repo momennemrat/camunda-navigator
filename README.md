@@ -13,7 +13,7 @@
 *   **Smart Project Mapping:** Select your project root once; the plugin handles the rest by indexing your files.
 *   **Menu Integration:** Access all actions via the native Modeler menu bar.
 
-![menu](menu.png)
+![menu](menu2.png)
 
 ---
 
@@ -36,7 +36,7 @@ The plugin supports both Windows/Linux and macOS natively.
 
 | Action | Windows/Linux | macOS | Description |
 | :--- | :--- | :--- | :--- |
-| **Go to Definition** | `Ctrl + G` | `Cmd + G` | Opens the file linked to the selected task. |
+| **Go to Definition** | `Ctrl + G` or `Ctrl + H` | `Cmd + G` or `Cmd + H` | Opens the file linked to the selected task. |
 | **Search Definitions** | `Ctrl + Q` | `Cmd + Q` | Opens the auto-complete search modal. |
 | **Reset Root Folder** | `Ctrl + R` | `Cmd + R` | Clears the saved path to select a new project. |
 
@@ -45,7 +45,7 @@ The first time you trigger a command, the plugin will ask you to select your **R
 
 ### 🔍 Navigating Call Activities
 1. Select a **Call Activity** or **Business Rule Task**.
-2. Press `Cmd/Ctrl + G`.
+2. Press `Cmd/Ctrl + G` or `Cmd/Ctrl + H`.
 3. If the definition exists in your root folder, it opens automatically in a new window.
 
 ### ⚡ Quick Search
