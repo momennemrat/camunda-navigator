@@ -141,9 +141,27 @@ async function searchDefinition(){
     showMessage(AlertMessages.chooseRootFolderFirst)
     await initDirectory();
   }
-  
-  const  processId = await app.mainWindow.webContents.executeJavaScript(`document.querySelector('#bio-properties-panel-targetProcessId')?.value`);
-  const  decisionId = await app.mainWindow.webContents.executeJavaScript(`document.querySelector('#bio-properties-panel-decisionId')?.value`);
+
+  const processId = await app.mainWindow.webContents.executeJavaScript(`
+    (
+      document.querySelector('#bio-properties-panel-targetProcessId')?.value ||
+      // Camunda 7 Selectors
+      document.querySelector('#bio-properties-panel-calledElement')?.value ||
+      document.querySelector('[data-entry-id="calledElement"] input[name="calledElement"]')?.value ||
+      document.querySelector('input[name="calledElement"]')?.value
+    )
+  `);
+
+  const decisionId = await app.mainWindow.webContents.executeJavaScript(`
+    (
+      document.querySelector('#bio-properties-panel-decisionId')?.value ||
+      // Camunda 7 Selectors
+      document.querySelector('#bio-properties-panel-decisionRef')?.value ||
+      document.querySelector('[data-entry-id="decisionRef"] input[name="decisionRef"]')?.value ||
+      document.querySelector('input[name="decisionRef"]')?.value
+    )
+  `);
+
   console.log('found processId:', processId);
   console.log('found decisionId:', decisionId);
 
