@@ -10,65 +10,49 @@ const analyzeCamundafiles = (filePaths) => {
     const filteredPaths = filePaths.filter(path => path.endsWith('.dmn') || path.endsWith('.bpmn'))
 
     let fileModels = filteredPaths.map(path => {
-        return {
-            path: path,
-            fileName: '',
-            content: readFileContent(path),
-            type: path.endsWith('.dmn')? 'dmn': 'bpmn',
-            ids: [],
-            names: []
+
+        const content = readFileContent(path);
+        if(!content){
+            return null;
         }
-    })
-    .filter(fileModel => fileModel.content);
-
-    fileModels.forEach(fileModel => {
-
+        const fileType = path.endsWith('.dmn')? 'dmn': 'bpmn';
         let founds = null;
-        let onlyIds = null;
-        
-        if(fileModel.type == 'bpmn'){
-            founds = fileModel.content.match(/<bpmn:process id="([^"]*)" name="([^"]*)"/g)?.map(f => f.match(/<bpmn:process id="([^"]*)" name="([^"]*)"/));
-            onlyIds = fileModel.content.match(/<bpmn:process id="([^"]*)"/g)?.map(f => f.match(/<bpmn:process id="([^"]*)"/));
-        } else if(fileModel.type == 'dmn') {
-            founds = fileModel.content.match(/<decision id="([^"]*)" name="([^"]*)"/g)?.map(f => f.match(/<decision id="([^"]*)" name="([^"]*)"/));
-            onlyIds = fileModel.content.match(/<decision id="([^"]*)"/g)?.map(f => f.match(/<decision id="([^"]*)"/));
+        let models = [];
+
+        if(fileType == 'bpmn'){
+            founds = [...content.matchAll(/<bpmn:process[ ]+id="([^"]*)"(?:[ ]+name="([^"]*))?/g)];
+        } else if(fileType == 'dmn') {
+            founds = [...content.matchAll(/<decision id="([^"]*)"(?:[ ]+name="([^"]*))?/g)];
         }
 
         if(founds?.length){
-            founds.forEach(found => {
-                if(found.length > 1){
-                    fileModel.ids.push(found[1]);
+            models = founds.map(found => {
 
-                    if(found.length > 2){
-                        fileModel.names.push(found[2]);
-                    }
+                return {
+                    id: found[1],
+                    name: found[2],
+                    path: path,
+                    fileName: '',
+                    type: fileType,
                 }
-            });
+            })
         }
 
-        if(onlyIds?.length){
-            onlyIds.forEach(onlyId => {
-                if(onlyId.length > 1){
-                    fileModel.ids.push(onlyId[1]);
-                }
-            });
+        return {
+            path: path,
+            fileName: '',
+            type: fileType,
+            models: models,
         }
+    })
+    .filter(fileModel => fileModel);
 
-        if(fileModel.ids){
-            fileModel.ids = [...new Set(fileModel.ids)];
-        }
+    const failedModels = fileModels.filter(model => model.models.length == 0);
 
-        if(fileModel.names){
-            fileModel.names = [...new Set(fileModel.names)];
-        }
-        
-    });
+    let models = fileModels.map(fileModel => fileModel.models).flat();
 
-    const failedModels = fileModels.filter(model => model.ids.length == 0);
 
-    debugger;
-
-    return fileModels;
+    return models;
 }
 
 
