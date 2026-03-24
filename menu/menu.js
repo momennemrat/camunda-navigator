@@ -172,7 +172,7 @@ async function searchDefinition(){
   }
 
   const targetId = processId?? decisionId;
-  const targetModel = models.filter(model => model.ids.includes(targetId))[0];
+  const targetModel = models.find(model => model.id == targetId);
 
   if(!targetModel){
 

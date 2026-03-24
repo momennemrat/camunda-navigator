@@ -5,64 +5,62 @@
   <datalist id="items"></datalist>
 </div>
 
+<label>
+  <input type="radio" name="type" value="bpmn" checked onchange="changeType(this.value)">
+  BPMN
+</label>
+
+<label>
+  <input type="radio" name="type" value="dmn" onchange="changeType(this.value)">
+  DMN
+</label>
+
 <script>
     const { ipcRenderer } = require('electron');
 
     const list = document.getElementById('items');
     let items = [];
 
-    /*
-    document.getElementById('search-input').addEventListener('input', (e) => {
-        //debugger;
-        //console.log('input event called, with value:', e.target.value, 'full object:', e);
-    });
-    //*/
-
     document.getElementById('search-input').addEventListener('change', (e) => {
-        //debugger;
-        console.log('change event called, with value:', e.target.value, 'full object:', e);
 
         const selected = items.find(item => item.name === e.target.value);
         if (selected){
-            console.log("Selected ID:", selected.path);
             ipcRenderer.send('search-modal-action', selected.path);
         }
     });
 
+    function rebuildOptionList(type = 'bpmn'){
+
+        const options = items.filter(item => item.type == type)
+        .map(item => {
+            let option = document.createElement('option');
+            option.value = item.name;
+            option.dataset.id = item.path;
+            return option;
+        })
+        
+        list.replaceChildren(...options);
+    }
+
+    function changeType(newTypeValue){
+        rebuildOptionList(newTypeValue);
+    }
+
     (async () => {
     try {
-        debugger;
         
         let models = [];
         models = await ipcRenderer.invoke('get-models', null);
 
-        console.log(models);
-        
-        (models?? []).forEach(model => {
-            
-            const ready =(model.ids?? []).concat(model.names?? []).map(name => {
-                return {
-                    name: name,
-                    path: model.path
-                }
-            });
-
-            items = items.concat(ready);
+        items = models.map(model => {
+            return {
+                name: `${model.name} (${model.id})`,
+                path: model.path,
+                type: model.type
+            }
         });
-
         
-
-        items.forEach(item => {
-            let option = document.createElement('option');
-            option.value = item.name; // What the user sees/types
-            option.dataset.id = item.path; // Store ID for later
-            list.appendChild(option);
-        });
-
-        
-        
-        //ipcRenderer.send('search-modal-action', action);
-
+        rebuildOptionList();
 
     } catch (error) {
         console.error("Error fetching data:", error);
