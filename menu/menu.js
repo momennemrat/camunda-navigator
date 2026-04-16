@@ -3,20 +3,24 @@ const { fetchDeepFileNames } = require('../utils/fetch-files.js');
 const { analyzeCamundafiles } = require('../utils/analyze-camunda-files.js');
 const { loadStorage, saveStorage } = require('../utils/storage.js');
 const { openSearchModal } = require('../utils/search-models.js');
+const { openFeelPlayground } = require('../utils/open-feel-playground.js');
 const electron = require('electron');
 const dialog = electron.dialog;
 const app = electron.app;
 const BrowserWindow = electron.BrowserWindow;
 const ipcMain = electron.ipcMain;
+const { shell } = require('electron');
 
 const KeyboardShortcuts = {
   goToElementDefinition: 'CommandOrControl+g',
+  goToElementDefinitionNewWay: 'CommandOrControl+h',
   searchDefinitions: 'CommandOrControl+q',
   resetRootFolder: 'CommandOrControl+r'
 }
 
 const lables = {
   goToElementDefinition: 'Go to element definition',
+  goToElementDefinitionNewWay: 'Go to element definition (force open)',
   searchDefinitions: 'Search definitions',
   resetRootFolder: 'Reset root folder for definitions (BPMN/DMN)'
 }
@@ -58,7 +62,7 @@ function startUp(){
 
 ipcMain.on('search-modal-action', (event, id) => {
   modalWindow.close();
-  app.emit('menu:action', 'open-diagram', {path: id});
+  shell.openPath(id);
 });
 
 ipcMain.handle('get-models', async (event, data) => {
@@ -77,7 +81,14 @@ module.exports = function(electronApp, menuState) {
       label: lables.goToElementDefinition,
       accelerator: KeyboardShortcuts.goToElementDefinition,
       enabled: () => menuState.elementsSelected,
-      action: async () => { searchDefinition(); }
+      action: async () => { searchDefinitionOldWay(); }
+    },
+
+    {
+      label: lables.goToElementDefinitionNewWay,
+      accelerator: KeyboardShortcuts.goToElementDefinitionNewWay,
+      enabled: () => menuState.elementsSelected,
+      action: async () => { searchDefinitionNewWay(); }
     },
 
     {
@@ -90,6 +101,12 @@ module.exports = function(electronApp, menuState) {
       label: lables.resetRootFolder,
       accelerator: KeyboardShortcuts.resetRootFolder,
       action: async () => { await initDirectory(); }
+    },
+
+    {
+      label: 'FEEL Playground',
+      accelerator: 'CommandOrControl+Shift+f',
+      action: () => { openFeelPlayground(); }
     },
   ];
 };
@@ -136,7 +153,7 @@ async function loadDirectory(){
   //showMessage('models found: ' + models.length);
 }
 
-async function searchDefinition(){
+async function searchDefinitionOldWay(){
   if(rootPath == null){
     showMessage(AlertMessages.chooseRootFolderFirst)
     await initDirectory();
@@ -180,7 +197,41 @@ async function searchDefinition(){
     return;
   }
 
-  app.emit('menu:action', 'open-diagram', {path: targetModel.path});
+  log('target model found:', targetModel.path);
+
+  const normalizedPath = targetModel.path.replace(/\\/g, '/');
+  app.emit('menu:action', 'open-diagram', {filePath: normalizedPath});
+}
+
+async function searchDefinitionNewWay(){
+  if(rootPath == null){
+    showMessage(AlertMessages.chooseRootFolderFirst)
+    await initDirectory();
+  }
+  
+  const  processId = await app.mainWindow.webContents.executeJavaScript(`document.querySelector('#bio-properties-panel-targetProcessId')?.value`);
+  const  decisionId = await app.mainWindow.webContents.executeJavaScript(`document.querySelector('#bio-properties-panel-decisionId')?.value`);
+  console.log('found processId:', processId);
+  console.log('found decisionId:', decisionId);
+
+  if(!processId && !decisionId){
+
+    showMessage(AlertMessages.noSelected);
+    return;
+  }
+
+  const targetId = processId?? decisionId;
+  const targetModel = models.filter(model => model.ids.includes(targetId))[0];
+
+  if(!targetModel){
+
+    showMessage(AlertMessages.noDefinitionsFoundForSelectedelement);
+    return;
+  }
+
+  log('target model found:', targetModel.path);
+
+  shell.openPath(targetModel.path);
 }
 
 const showMessage = (message) => {
