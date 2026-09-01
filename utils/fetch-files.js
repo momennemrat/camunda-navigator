@@ -2,22 +2,20 @@ const fs = require('fs');
 const path = require('path');
 
 
-//import * as fs from 'fs';
-//import * as path from 'path';
-
-
-
-const fetchDeepFileNames = (folderPath) => {
+const fetchDeepFileNames = (folderPath, maxDepth = 20) => {
 
     errorIfPathNotExist(folderPath);
     errorIfNotFolder(folderPath);
 
-    const filePaths = readFolderRecursion(folderPath);
-    //const contents = filePaths.map(path => readFileContent(path));
-    return filePaths;
+    return readFolderRecursion(folderPath, maxDepth);
 }
 
-const readFolderRecursion = (folderPath, depth = 20) => {
+const readFolderRecursion = (folderPath, depth) => {
+
+    if(depth <= 0){
+        console.warn('Max folder depth reached, skipping: ' + folderPath);
+        return [];
+    }
 
     errorIfPathNotExist(folderPath);
     errorIfNotFolder(folderPath);
@@ -30,19 +28,11 @@ const readFolderRecursion = (folderPath, depth = 20) => {
     let groupedFiles = onlyFiles.slice();
 
     if(onlyFolders.length > 0){
-        groupedFiles = groupedFiles.concat(onlyFolders.map(subFolderFullPath => readFolderRecursion(subFolderFullPath, depth-1)).flat());
+        groupedFiles = groupedFiles.concat(onlyFolders.map(subFolderFullPath => readFolderRecursion(subFolderFullPath, depth - 1)).flat());
     }
 
     return groupedFiles;
 }
-
-const readFileContent = (filePath)=> {
-
-    let readedContent = fs.readFileSync(filePath, {encoding: 'utf-8'});
-
-}
-
-
 
 
 const errorIfPathNotExist = (path) => {

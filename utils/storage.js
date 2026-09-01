@@ -1,7 +1,9 @@
 const fs = require('fs');
 const path = require('path');
+const electron = require('electron');
+const app = electron.app;
 
-const dataStoragePath = path.join(__dirname , 'storage.txt');
+const dataStoragePath = path.join(app.getPath('userData'), 'camunda-navigator-storage.json');
 
 console.log('storage file location:', dataStoragePath);
 

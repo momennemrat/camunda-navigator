@@ -15,6 +15,8 @@ const KeyboardShortcuts = {
   resetRootFolder: 'CommandOrControl+r'
 }
 
+const MAX_FOLDER_DEPTH = 20;
+
 const lables = {
   goToElementDefinition: 'Go to element definition',
   searchDefinitions: 'Search definitions',
@@ -57,7 +59,9 @@ function startUp(){
 }
 
 ipcMain.on('search-modal-action', (event, id) => {
-  modalWindow.close();
+  if(modalWindow && !modalWindow.isDestroyed()){
+    modalWindow.close();
+  }
   app.emit('menu:action', 'open-diagram', {path: id});
 });
 
@@ -100,7 +104,12 @@ module.exports = function(electronApp, menuState) {
 async function initDirectory(){
 
   const folderPath = selectDirectory();
-  rootPath = folderPath
+
+  if(folderPath == null){
+    return;
+  }
+
+  rootPath = folderPath;
   storage.rootPath = rootPath;
   saveStorage(storage);
   showMessage('path: ' + rootPath);
@@ -112,25 +121,26 @@ async function initDirectory(){
 
 function selectDirectory() {
   const window = BrowserWindow.getFocusedWindow(); // Get the current focused window
+  // showOpenDialogSync returns the selected paths, or undefined when cancelled
   const result = dialog.showOpenDialogSync(window, {
     title: 'Please choose the root folder for all BPMN/DMN files', // The message/title
     properties: ['openDirectory'] // Specify that only directories can be selected
   });
 
-  if (result.canceled) {
+  if (!result || result.length === 0) {
     log('Folder selection cancelled');
     return null;
-  } else {
-    const folderPath = result[0];
-    log('Selected folder path:', folderPath);
-    return folderPath;
   }
+
+  const folderPath = result[0];
+  log('Selected folder path:', folderPath);
+  return folderPath;
 }
 
 async function loadDirectory(){
   
   log('storage folder path: '+ rootPath);
-  const paths = fetchDeepFileNames(rootPath);
+  const paths = fetchDeepFileNames(rootPath, MAX_FOLDER_DEPTH);
   models = analyzeCamundafiles(paths)?? [];
   
   //showMessage('models found: ' + models.length);
@@ -171,7 +181,7 @@ async function searchDefinition(){
     return;
   }
 
-  const targetId = processId?? decisionId;
+  const targetId = processId || decisionId;
   const targetModel = models.find(model => model.id == targetId);
 
   if(!targetModel){
@@ -191,8 +201,7 @@ const showMessage = (message) => {
     buttons: ['OK', 'Close']
   };
 
-  // Returns the index of the clicked button
-  const buttonIndex = dialog.showMessageBoxSync(options);
+  dialog.showMessageBoxSync(options);
 }
 
 function log(...args){

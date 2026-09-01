@@ -32,7 +32,6 @@ const analyzeCamundafiles = (filePaths) => {
                     id: found[1],
                     name: found[2],
                     path: path,
-                    fileName: '',
                     type: fileType,
                 }
             })
@@ -40,7 +39,6 @@ const analyzeCamundafiles = (filePaths) => {
 
         return {
             path: path,
-            fileName: '',
             type: fileType,
             models: models,
         }
