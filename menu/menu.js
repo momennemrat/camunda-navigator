@@ -17,6 +17,22 @@ const KeyboardShortcuts = {
 
 const MAX_FOLDER_DEPTH = 20;
 
+// Folders never worth scanning for BPMN/DMN definitions.
+const EXCLUDED_FOLDERS = [
+  'node_modules',
+  '.git',
+  '.svn',
+  '.hg',
+  '.idea',
+  '.vscode',
+  'target',
+  'build',
+  'dist',
+  'out',
+  '.gradle',
+  '.mvn'
+];
+
 const lables = {
   goToElementDefinition: 'Go to element definition',
   searchDefinitions: 'Search definitions',
@@ -27,7 +43,8 @@ const AlertMessages = {
   chooseRootFolderFirst: 'Choose root folder that contains all definitions (BPMNs and DMNs)',
   noSelected: 'No process/decision selected!',
   noDefinitionsFoundForSelectedelement: 'No definitions found for selected element!',
-  noDefinitionsFoundInFolder: 'No definitions found in the selected folder and sub-folders!'
+  noDefinitionsFoundInFolder: 'No definitions found in the selected folder and sub-folders!',
+  couldNotReadFolder: 'Could not read the definitions folder'
 }
 
 
@@ -140,8 +157,18 @@ function selectDirectory() {
 async function loadDirectory(){
   
   log('storage folder path: '+ rootPath);
-  const paths = fetchDeepFileNames(rootPath, MAX_FOLDER_DEPTH);
-  models = analyzeCamundafiles(paths)?? [];
+
+  try {
+    const paths = fetchDeepFileNames(rootPath, {
+      maxDepth: MAX_FOLDER_DEPTH,
+      excludedFolders: EXCLUDED_FOLDERS
+    });
+    models = analyzeCamundafiles(paths)?? [];
+  } catch(error){
+    models = [];
+    log(AlertMessages.couldNotReadFolder + ': ' + error.message);
+    showMessage(AlertMessages.couldNotReadFolder + ': ' + error.message);
+  }
   
   //showMessage('models found: ' + models.length);
 }
