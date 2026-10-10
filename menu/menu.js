@@ -11,8 +11,7 @@ const ipcMain = electron.ipcMain;
 
 const KeyboardShortcuts = {
   goToElementDefinition: 'CommandOrControl+g',
-  searchDefinitions: 'CommandOrControl+q',
-  resetRootFolder: 'CommandOrControl+r'
+  searchDefinitions: 'CommandOrControl+Shift+f'
 }
 
 const MAX_FOLDER_DEPTH = 20;
@@ -109,7 +108,6 @@ module.exports = function(electronApp, menuState) {
 
     {
       label: lables.resetRootFolder,
-      accelerator: KeyboardShortcuts.resetRootFolder,
       action: async () => { await initDirectory(); }
     },
   ];
