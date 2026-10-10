@@ -1,5 +1,4 @@
 const fs = require('fs');
-const path = require('path');
 
 
 const analyzeCamundafiles = (filePaths) => {
@@ -32,7 +31,6 @@ const analyzeCamundafiles = (filePaths) => {
                     id: found[1],
                     name: found[2],
                     path: path,
-                    fileName: '',
                     type: fileType,
                 }
             })
@@ -40,14 +38,16 @@ const analyzeCamundafiles = (filePaths) => {
 
         return {
             path: path,
-            fileName: '',
             type: fileType,
             models: models,
         }
     })
     .filter(fileModel => fileModel);
 
-    const failedModels = fileModels.filter(model => model.models.length == 0);
+    const unreadableCount = filteredPaths.length - fileModels.length;
+    if(unreadableCount > 0){
+        console.warn('Skipped ' + unreadableCount + ' unreadable BPMN/DMN file(s).');
+    }
 
     let models = fileModels.map(fileModel => fileModel.models).flat();
 
@@ -56,11 +56,15 @@ const analyzeCamundafiles = (filePaths) => {
 }
 
 
-
+// One unreadable file must not abort indexing the whole folder.
 const readFileContent = (filePath)=> {
 
-    const readedContent = fs.readFileSync(filePath, {encoding: 'utf-8'});
-    return readedContent;
+    try {
+        return fs.readFileSync(filePath, {encoding: 'utf-8'});
+    } catch(error){
+        console.warn('Cannot read file, skipping: ' + filePath + ' (' + error.message + ')');
+        return null;
+    }
 }
 
 

@@ -11,9 +11,26 @@ const ipcMain = electron.ipcMain;
 
 const KeyboardShortcuts = {
   goToElementDefinition: 'CommandOrControl+g',
-  searchDefinitions: 'CommandOrControl+q',
-  resetRootFolder: 'CommandOrControl+r'
+  searchDefinitions: 'CommandOrControl+Shift+f'
 }
+
+const MAX_FOLDER_DEPTH = 20;
+
+// Folders never worth scanning for BPMN/DMN definitions.
+const EXCLUDED_FOLDERS = [
+  'node_modules',
+  '.git',
+  '.svn',
+  '.hg',
+  '.idea',
+  '.vscode',
+  'target',
+  'build',
+  'dist',
+  'out',
+  '.gradle',
+  '.mvn'
+];
 
 const lables = {
   goToElementDefinition: 'Go to element definition',
@@ -25,7 +42,8 @@ const AlertMessages = {
   chooseRootFolderFirst: 'Choose root folder that contains all definitions (BPMNs and DMNs)',
   noSelected: 'No process/decision selected!',
   noDefinitionsFoundForSelectedelement: 'No definitions found for selected element!',
-  noDefinitionsFoundInFolder: 'No definitions found in the selected folder and sub-folders!'
+  noDefinitionsFoundInFolder: 'No definitions found in the selected folder and sub-folders!',
+  couldNotReadFolder: 'Could not read the definitions folder'
 }
 
 
@@ -57,7 +75,9 @@ function startUp(){
 }
 
 ipcMain.on('search-modal-action', (event, id) => {
-  modalWindow.close();
+  if(modalWindow && !modalWindow.isDestroyed()){
+    modalWindow.close();
+  }
   app.emit('menu:action', 'open-diagram', {path: id});
 });
 
@@ -88,7 +108,6 @@ module.exports = function(electronApp, menuState) {
 
     {
       label: lables.resetRootFolder,
-      accelerator: KeyboardShortcuts.resetRootFolder,
       action: async () => { await initDirectory(); }
     },
   ];
@@ -100,7 +119,12 @@ module.exports = function(electronApp, menuState) {
 async function initDirectory(){
 
   const folderPath = selectDirectory();
-  rootPath = folderPath
+
+  if(folderPath == null){
+    return;
+  }
+
+  rootPath = folderPath;
   storage.rootPath = rootPath;
   saveStorage(storage);
   showMessage('path: ' + rootPath);
@@ -112,26 +136,37 @@ async function initDirectory(){
 
 function selectDirectory() {
   const window = BrowserWindow.getFocusedWindow(); // Get the current focused window
+  // showOpenDialogSync returns the selected paths, or undefined when cancelled
   const result = dialog.showOpenDialogSync(window, {
     title: 'Please choose the root folder for all BPMN/DMN files', // The message/title
     properties: ['openDirectory'] // Specify that only directories can be selected
   });
 
-  if (result.canceled) {
+  if (!result || result.length === 0) {
     log('Folder selection cancelled');
     return null;
-  } else {
-    const folderPath = result[0];
-    log('Selected folder path:', folderPath);
-    return folderPath;
   }
+
+  const folderPath = result[0];
+  log('Selected folder path:', folderPath);
+  return folderPath;
 }
 
 async function loadDirectory(){
   
   log('storage folder path: '+ rootPath);
-  const paths = fetchDeepFileNames(rootPath);
-  models = analyzeCamundafiles(paths)?? [];
+
+  try {
+    const paths = fetchDeepFileNames(rootPath, {
+      maxDepth: MAX_FOLDER_DEPTH,
+      excludedFolders: EXCLUDED_FOLDERS
+    });
+    models = analyzeCamundafiles(paths)?? [];
+  } catch(error){
+    models = [];
+    log(AlertMessages.couldNotReadFolder + ': ' + error.message);
+    showMessage(AlertMessages.couldNotReadFolder + ': ' + error.message);
+  }
   
   //showMessage('models found: ' + models.length);
 }
@@ -171,7 +206,7 @@ async function searchDefinition(){
     return;
   }
 
-  const targetId = processId?? decisionId;
+  const targetId = processId || decisionId;
   const targetModel = models.find(model => model.id == targetId);
 
   if(!targetModel){
@@ -191,8 +226,7 @@ const showMessage = (message) => {
     buttons: ['OK', 'Close']
   };
 
-  // Returns the index of the clicked button
-  const buttonIndex = dialog.showMessageBoxSync(options);
+  dialog.showMessageBoxSync(options);
 }
 
 function log(...args){

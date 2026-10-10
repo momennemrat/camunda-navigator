@@ -20,12 +20,15 @@
 
 ## 🔧 Installation
 
-1.  **Download** the plugin repository.
-2.  **Extract** the folder into your Camunda Modeler plugins directory:
+1.  **Download** `camunda-navigator.zip` from the [latest release](https://github.com/momennemrat/camunda-navigator/releases/latest).
+2.  **Extract** it. You get a single `camunda-navigator` folder.
+3.  **Move** that folder into your Camunda Modeler plugins directory:
     *   **Windows:** `%AppData%\camunda-modeler\resources\plugins`
     *   **macOS:** `~/Library/Application Support/camunda-modeler/resources/plugins`
     *   **Linux:** `~/.config/camunda-modeler/resources/plugins`
-3.  **Restart** Camunda Modeler.
+4.  **Restart** Camunda Modeler.
+
+The result must be `.../resources/plugins/camunda-navigator/index.js`. The Modeler discovers plugins by globbing `resources/plugins/*/index.js`, so the plugin folder has to sit directly inside `plugins`, not nested one level deeper.
 
 ---
 
@@ -38,8 +41,8 @@ The plugin supports both Windows/Linux and macOS natively.
 | Action | Windows/Linux | macOS | Description |
 | :--- | :--- | :--- | :--- |
 | **Go to Definition** | `Ctrl + G` | `Cmd + G` | Opens the file linked to the selected task. |
-| **Search Definitions** | `Ctrl + Q` | `Cmd + Q` | Opens the auto-complete search modal. |
-| **Reset Root Folder** | `Ctrl + R` | `Cmd + R` | Clears the saved path to select a new project. |
+| **Search Definitions** | `Ctrl + Shift + F` | `Cmd + Shift + F` | Opens the auto-complete search modal. |
+| **Reset Root Folder** | menu only | menu only | Clears the saved path to select a new project. |
 
 ### 🛠 Initial Setup
 The first time you trigger a command, the plugin will ask you to select your **Root Folder**. Choose the folder where your project's `.bpmn` and `.dmn` files are stored. The plugin uses this path to resolve `calledElement` and `decisionRef` attributes.
@@ -50,7 +53,7 @@ The first time you trigger a command, the plugin will ask you to select your **R
 3. If the definition exists in your root folder, it opens automatically in a new window.
 
 ### ⚡ Quick Search
-1. Press `Cmd/Ctrl + Q`.
+1. Press `Cmd/Ctrl + Shift + F`.
 2. Start typing the name of any process or decision.
 3. Use arrow keys to select and hit **Enter** to open.
 

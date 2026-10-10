@@ -16,6 +16,14 @@
     "url": "https://alnemrat.com"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/momennemrat/camunda-navigator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/momennemrat/camunda-navigator/issues"
+  },
+  "homepage": "https://github.com/momennemrat/camunda-navigator#readme",
   "type": "commonjs",
   "developer": {
     "name": "Moumen Alnemrat"

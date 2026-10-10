@@ -1,9 +1,6 @@
 const electron = require('electron');
 const path = require('path');
-const dialog = electron.dialog;
-const app = electron.app;
 const BrowserWindow = electron.BrowserWindow;
-const ipcMain = electron.ipcMain;
 
 function openSearchModal(){
   

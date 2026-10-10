@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify tag matches package.json version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${PKG_VERSION}."
+            echo "Bump package.json or retag before releasing."
+            exit 1
+          fi
+          echo "Releasing version ${PKG_VERSION}."
+
+      - name: Stage plugin folder
+        run: |
+          mkdir -p dist/camunda-navigator
+          cp -r index.js menu utils package.json README.md LICENSE menu.png dist/camunda-navigator/
+
+      - name: Sanity check the staged plugin
+        run: |
+          test -f dist/camunda-navigator/index.js
+          for file in dist/camunda-navigator/index.js \
+                      dist/camunda-navigator/menu/menu.js \
+                      dist/camunda-navigator/utils/*.js; do
+            node --check "$file"
+          done
+          echo "Staged files:"
+          find dist/camunda-navigator -type f | sort
+
+      - name: Create zip
+        run: |
+          cd dist
+          zip -r ../camunda-navigator.zip camunda-navigator
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" camunda-navigator.zip \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes
