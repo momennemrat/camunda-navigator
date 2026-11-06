@@ -16,6 +16,7 @@ const KeyboardShortcuts = {
 }
 
 const MAX_FOLDER_DEPTH = 20;
+const DEFINITION_EXTENSIONS = ['.bpmn', '.dmn'];
 
 // Folders never worth scanning for BPMN/DMN definitions.
 const EXCLUDED_FOLDERS = [
@@ -212,7 +213,8 @@ async function loadDirectory(){
   try {
     const paths = fetchDeepFileNames(rootPath, {
       maxDepth: MAX_FOLDER_DEPTH,
-      excludedFolders: EXCLUDED_FOLDERS
+      excludedFolders: EXCLUDED_FOLDERS,
+      extensions: DEFINITION_EXTENSIONS
     });
     models = analyzeCamundafiles(paths)?? [];
     return true;

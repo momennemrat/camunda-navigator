@@ -4,6 +4,7 @@ const path = require('path');
 
 const DEFAULT_MAX_DEPTH = 20;
 const DEFAULT_EXCLUDED_FOLDERS = [];
+const DEFAULT_EXTENSIONS = null;   // null means: collect every file
 
 const ErrorMessages = {
     pathNotExist: (target) => 'Path does not exist: ' + target,
@@ -15,6 +16,10 @@ const fetchDeepFileNames = (folderPath, options = {}) => {
 
     const maxDepth = options.maxDepth ?? DEFAULT_MAX_DEPTH;
     const excludedFolders = options.excludedFolders ?? DEFAULT_EXCLUDED_FOLDERS;
+    const extensions = options.extensions ?? DEFAULT_EXTENSIONS;
+    const allowedExtensions = extensions
+        ? extensions.map(ext => ext.toLowerCase())
+        : null;
 
     // The root folder is a hard requirement, so an invalid one throws.
     errorIfPathNotExist(folderPath);
@@ -23,10 +28,10 @@ const fetchDeepFileNames = (folderPath, options = {}) => {
     const excluded = new Set(excludedFolders.map(name => name.toLowerCase()));
     const visitedFolders = new Set();
 
-    return readFolderRecursion(folderPath, maxDepth, excluded, visitedFolders);
+    return readFolderRecursion(folderPath, maxDepth, excluded, visitedFolders, allowedExtensions);
 }
 
-const readFolderRecursion = (folderPath, depth, excluded, visitedFolders) => {
+const readFolderRecursion = (folderPath, depth, excluded, visitedFolders, allowedExtensions) => {
 
     if(depth <= 0){
         console.warn('Max folder depth reached, skipping: ' + folderPath);
@@ -62,7 +67,11 @@ const readFolderRecursion = (folderPath, depth, excluded, visitedFolders) => {
                 return;
             }
 
-            files = files.concat(readFolderRecursion(fullPath, depth - 1, excluded, visitedFolders));
+            files = files.concat(readFolderRecursion(fullPath, depth - 1, excluded, visitedFolders, allowedExtensions));
+            return;
+        }
+
+        if(allowedExtensions && !allowedExtensions.some(ext => entry.name.toLowerCase().endsWith(ext))){
             return;
         }
 

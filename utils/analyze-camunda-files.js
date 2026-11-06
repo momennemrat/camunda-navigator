@@ -11,7 +11,7 @@ const analyzeCamundafiles = (filePaths) => {
     let fileModels = filteredPaths.map(path => {
 
         const content = readFileContent(path);
-        if(!content){
+        if(content == null){
             return null;
         }
         const fileType = path.endsWith('.dmn')? 'dmn': 'bpmn';
