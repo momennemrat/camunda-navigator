@@ -1,7 +1,7 @@
 # Camunda Modeler Navigator Plugin
 
 [![Camunda Modeler 5.x+](https://img.shields.io/badge/Camunda%20Modeler-5.x+-blue)](https://camunda.com/download/modeler/)
-[![Camunda 7](https://img.shields.io/badge/Camunda%207-supported-green)](https://docs.camunda.io/)
+[![Camunda 7](https://img.shields.io/badge/Camunda%207-supported-green)](https://docs.camunda.org/)
 [![Camunda 8](https://img.shields.io/badge/Camunda%208-supported-green)](https://docs.camunda.io/)
 [![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -40,10 +40,10 @@ The plugin supports both Windows/Linux and macOS natively.
 
 | Action | Windows/Linux | macOS | Description |
 | :--- | :--- | :--- | :--- |
-| **Go to Definition** | `Ctrl + G` | `Cmd + G` | Opens the file linked to the selected task. |
-| **Search Definitions** | `Ctrl + Shift + F` | `Cmd + Shift + F` | Opens the auto-complete search modal. |
-| **Refresh Definitions** | `Ctrl + Shift + R` | `Cmd + Shift + R` | Re-indexes the root folder after files change. |
-| **Reset Root Folder** | menu only | menu only | Clears the saved path to select a new project. |
+| **Go to element definition** | `Ctrl + G` | `Cmd + G` | Opens the file linked to the selected task. |
+| **Search definitions** | `Ctrl + Shift + F` | `Cmd + Shift + F` | Opens the auto-complete search modal. |
+| **Refresh definitions** | `Ctrl + Shift + R` | `Cmd + Shift + R` | Re-indexes the root folder after files change. |
+| **Reset root folder** | menu only | menu only | Clears the saved path to select a new project. |
 
 ### 🛠 Initial Setup
 The first time you trigger a command, the plugin will ask you to select your **Root Folder**. Choose the folder where your project's `.bpmn` and `.dmn` files are stored. The plugin uses this path to resolve `calledElement` and `decisionRef` attributes.
@@ -60,10 +60,10 @@ The first time you trigger a command, the plugin will ask you to select your **R
 
 ### 📂 Menu Access
 A new **"Navigator"** menu will appear in the Modeler toolbar, containing:
-*   `Go to Definition`
-*   `Search Definitions`
-*   `Refresh Definitions`
-*   `Reset Definitions Folder`
+*   `Go to element definition`
+*   `Search definitions`
+*   `Refresh definitions`
+*   `Reset root folder`
 
 
 ---

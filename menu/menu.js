@@ -37,7 +37,7 @@ const lables = {
   goToElementDefinition: 'Go to element definition',
   searchDefinitions: 'Search definitions',
   refreshDefinitions: 'Refresh definitions',
-  resetRootFolder: 'Reset root folder for definitions (BPMN/DMN)'
+  resetRootFolder: 'Reset root folder'
 }
 
 const AlertMessages = {
