@@ -20,11 +20,18 @@ function openSearchModal(){
     }
 
     const window = new BrowserWindow({
-    show: false,
-    webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false
-    }
+        width: 520,
+        height: 200,
+        parent: BrowserWindow.getFocusedWindow(),
+        resizable: false,
+        fullscreenable: false,
+        autoHideMenuBar: true,
+        title: 'Search definitions',
+        show: false,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false
+        }
     });
 
     modalWindow = window;
