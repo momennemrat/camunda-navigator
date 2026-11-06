@@ -98,6 +98,10 @@ ipcMain.handle('get-models', async (event, data) => {
   return models;
 });
 
+ipcMain.handle('get-root-path', async (event) => {
+  return rootPath;
+});
+
 
 startUp();
 

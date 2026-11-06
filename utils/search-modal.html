@@ -19,9 +19,10 @@
     const { ipcRenderer } = require('electron');
 
     const list = document.getElementById('items');
+    const input = document.getElementById('search-input');
     let items = [];
 
-    document.getElementById('search-input').addEventListener('change', (e) => {
+    input.addEventListener('change', (e) => {
 
         const selected = items.find(item => item.name === e.target.value);
         if (selected){
@@ -55,26 +56,65 @@
         rebuildOptionList(newTypeValue);
     }
 
-    (async () => {
-    try {
-        
-        let models = [];
-        models = await ipcRenderer.invoke('get-models', null);
+    function showEmptyState(message, hoverText){
 
-        items = models.map(model => {
-            return {
-                name: model.name ? `${model.name} (${model.id})` : model.id,
-                path: model.path,
-                type: model.type
-            }
-        });
-        
-        rebuildOptionList();
-
-    } catch (error) {
-        console.error("Error fetching data:", error);
+        input.value = '';
+        input.placeholder = message;
+        input.title = hoverText || '';
+        input.disabled = true;
     }
-    })();
+
+    function clearEmptyState(){
+
+        input.placeholder = 'Search models...';
+        input.title = '';
+        input.disabled = false;
+    }
+
+    async function loadItems(){
+
+        try {
+
+            const models = await ipcRenderer.invoke('get-models', null);
+
+            items = models.map(model => {
+                return {
+                    name: model.name ? `${model.name} (${model.id})` : model.id,
+                    path: model.path,
+                    type: model.type
+                }
+            });
+
+            rebuildOptionList();
+
+            if (items.length === 0){
+
+                const rootPath = await ipcRenderer.invoke('get-root-path');
+
+                showEmptyState(
+                    rootPath
+                        ? 'No BPMN or DMN definitions found in the root folder.'
+                        : 'No root folder set yet. Use the Reset root folder menu action.',
+                    rootPath || ''
+                );
+            } else {
+                clearEmptyState();
+            }
+
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            showEmptyState('Could not load the definition list.');
+        }
+    }
+
+    window.addEventListener('focus', () => {
+
+        if (items.length === 0){
+            loadItems();
+        }
+    });
+
+    loadItems();
 
     
 
