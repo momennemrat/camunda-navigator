@@ -29,6 +29,15 @@
         }
     });
 
+    // Escape closes the palette. defaultPrevented is respected so that a key
+    // already consumed by the native suggestion popup does not also close it.
+    document.addEventListener('keydown', (e) => {
+
+        if (e.key === 'Escape' && !e.defaultPrevented){
+            window.close();
+        }
+    });
+
     function rebuildOptionList(type = 'bpmn'){
 
         const options = items.filter(item => item.type == type)
