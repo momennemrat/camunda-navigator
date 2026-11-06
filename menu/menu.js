@@ -210,6 +210,10 @@ async function searchDefinition(){
   if(rootPath == null){
     showMessage(AlertMessages.chooseRootFolderFirst)
     await initDirectory();
+
+    if(rootPath == null){
+      return;
+    }
   }
 
   const processId = await app.mainWindow.webContents.executeJavaScript(`
