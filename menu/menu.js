@@ -264,12 +264,18 @@ async function searchDefinition(){
   }
 
   const targetId = processId || decisionId;
-  const targetModel = models.find(model => model.id == targetId);
+  const matches = models.filter(model => model.id === targetId);
 
-  if(!targetModel){
+  if(matches.length === 0){
 
     showMessage(AlertMessages.noDefinitionsFoundForSelectedelement);
     return;
+  }
+
+  const targetModel = matches[0];
+
+  if(matches.length > 1){
+    log('Multiple definitions with the id ' + targetId + ', opening ' + targetModel.path + '. All matches: ' + matches.map(match => match.path).join(', '));
   }
 
   app.emit('menu:action', 'open-diagram', {path: targetModel.path});
