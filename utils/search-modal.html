@@ -15,20 +15,48 @@
   DMN
 </label>
 
+<div id="status" role="status" aria-live="polite"></div>
+
 <script>
     const { ipcRenderer } = require('electron');
 
     const list = document.getElementById('items');
     const input = document.getElementById('search-input');
+    const status = document.getElementById('status');
     let items = [];
+    let currentType = 'bpmn';
+    let opened = false;
 
     input.addEventListener('change', (e) => {
 
         const selected = items.find(item => item.name === e.target.value);
         if (selected){
-            ipcRenderer.send('search-modal-action', selected.path);
+            openItem(selected);
         }
     });
+    
+    input.addEventListener('keydown', (e) => {
+
+        if (e.key !== 'Enter'){
+            return;
+        }
+
+        const typed = input.value.trim();
+
+        if (!typed){
+            return;
+        }
+
+        const match = findMatch(typed);
+
+        if (match){
+            openItem(match);
+        } else {
+            showStatus('No ' + currentType.toUpperCase() + ' definition matches "' + typed + '".');
+        }
+    });
+
+    input.addEventListener('input', clearStatus);
 
     // Escape closes the palette. defaultPrevented is respected so that a key
     // already consumed by the native suggestion popup does not also close it.
@@ -39,9 +67,9 @@
         }
     });
 
-    function rebuildOptionList(type = 'bpmn'){
+    function rebuildOptionList(){
 
-        const options = items.filter(item => item.type == type)
+        const options = items.filter(item => item.type == currentType)
         .map(item => {
             let option = document.createElement('option');
             option.value = item.name;
@@ -53,7 +81,37 @@
     }
 
     function changeType(newTypeValue){
-        rebuildOptionList(newTypeValue);
+
+        currentType = newTypeValue;
+        clearStatus();
+        rebuildOptionList();
+    }
+
+    function findMatch(typed){
+
+        const lowered = typed.toLowerCase();
+        const visible = items.filter(item => item.type == currentType);
+
+        return visible.find(item => item.name.toLowerCase() === lowered)
+            || visible.find(item => item.name.toLowerCase().includes(lowered));
+    }
+
+    function openItem(item){
+
+        if (opened){
+            return;
+        }
+
+        opened = true;
+        ipcRenderer.send('search-modal-action', item.path);
+    }
+
+    function showStatus(message){
+        status.textContent = message;
+    }
+
+    function clearStatus(){
+        status.textContent = '';
     }
 
     function showEmptyState(message, hoverText){
@@ -148,5 +206,12 @@
 
   #search-input::placeholder {
     color: #aaa;
+  }
+
+  #status {
+    min-height: 18px;
+    margin-top: 10px;
+    font-size: 13px;
+    color: #c0392b;
   }
 </style>
