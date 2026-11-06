@@ -11,7 +11,8 @@ const ipcMain = electron.ipcMain;
 
 const KeyboardShortcuts = {
   goToElementDefinition: 'CommandOrControl+g',
-  searchDefinitions: 'CommandOrControl+Shift+f'
+  searchDefinitions: 'CommandOrControl+Shift+f',
+  refreshDefinitions: 'CommandOrControl+Shift+r'
 }
 
 const MAX_FOLDER_DEPTH = 20;
@@ -35,6 +36,7 @@ const EXCLUDED_FOLDERS = [
 const lables = {
   goToElementDefinition: 'Go to element definition',
   searchDefinitions: 'Search definitions',
+  refreshDefinitions: 'Refresh definitions',
   resetRootFolder: 'Reset root folder for definitions (BPMN/DMN)'
 }
 
@@ -43,7 +45,8 @@ const AlertMessages = {
   noSelected: 'No process/decision selected!',
   noDefinitionsFoundForSelectedelement: 'No definitions found for selected element!',
   noDefinitionsFoundInFolder: 'No definitions found in the selected folder and sub-folders!',
-  couldNotReadFolder: 'Could not read the definitions folder'
+  couldNotReadFolder: 'Could not read the definitions folder',
+  definitionsRefreshed: (count) => 'Definitions refreshed. ' + count + ' found.'
 }
 
 
@@ -107,6 +110,12 @@ module.exports = function(electronApp, menuState) {
     },
 
     {
+      label: lables.refreshDefinitions,
+      accelerator: KeyboardShortcuts.refreshDefinitions,
+      action: async () => { await refreshDefinitions(); }
+    },
+
+    {
       label: lables.resetRootFolder,
       action: async () => { await initDirectory(); }
     },
@@ -128,10 +137,34 @@ async function initDirectory(){
   storage.rootPath = rootPath;
   saveStorage(storage);
   showMessage('path: ' + rootPath);
-  await loadDirectory();
-  if(models.length == 0){
+
+  const loaded = await loadDirectory();
+
+  if(loaded && models.length == 0){
     showMessage(AlertMessages.noDefinitionsFoundInFolder);
   }
+}
+
+async function refreshDefinitions(){
+
+  if(rootPath == null){
+    showMessage(AlertMessages.chooseRootFolderFirst);
+    return;
+  }
+
+  const loaded = await loadDirectory();
+
+  if(!loaded){
+    // loadDirectory already reported the failure
+    return;
+  }
+
+  if(models.length == 0){
+    showMessage(AlertMessages.noDefinitionsFoundInFolder);
+    return;
+  }
+
+  showMessage(AlertMessages.definitionsRefreshed(models.length));
 }
 
 function selectDirectory() {
@@ -162,10 +195,12 @@ async function loadDirectory(){
       excludedFolders: EXCLUDED_FOLDERS
     });
     models = analyzeCamundafiles(paths)?? [];
+    return true;
   } catch(error){
     models = [];
     log(AlertMessages.couldNotReadFolder + ': ' + error.message);
     showMessage(AlertMessages.couldNotReadFolder + ': ' + error.message);
+    return false;
   }
   
   //showMessage('models found: ' + models.length);

@@ -42,6 +42,7 @@ The plugin supports both Windows/Linux and macOS natively.
 | :--- | :--- | :--- | :--- |
 | **Go to Definition** | `Ctrl + G` | `Cmd + G` | Opens the file linked to the selected task. |
 | **Search Definitions** | `Ctrl + Shift + F` | `Cmd + Shift + F` | Opens the auto-complete search modal. |
+| **Refresh Definitions** | `Ctrl + Shift + R` | `Cmd + Shift + R` | Re-indexes the root folder after files change. |
 | **Reset Root Folder** | menu only | menu only | Clears the saved path to select a new project. |
 
 ### 🛠 Initial Setup
@@ -61,6 +62,7 @@ The first time you trigger a command, the plugin will ask you to select your **R
 A new **"Navigator"** menu will appear in the Modeler toolbar, containing:
 *   `Go to Definition`
 *   `Search Definitions`
+*   `Refresh Definitions`
 *   `Reset Definitions Folder`
 
 
