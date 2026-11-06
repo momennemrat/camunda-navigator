@@ -46,6 +46,7 @@ const AlertMessages = {
   noDefinitionsFoundForSelectedelement: 'No definitions found for selected element!',
   noDefinitionsFoundInFolder: 'No definitions found in the selected folder and sub-folders!',
   couldNotReadFolder: 'Could not read the definitions folder',
+  rootFolderNotSaved: 'Root folder set for this session only. It could not be saved, so the Modeler will forget it on restart.',
   definitionsRefreshed: (count) => 'Definitions refreshed. ' + count + ' found.'
 }
 
@@ -146,8 +147,14 @@ async function initDirectory(){
 
   rootPath = folderPath;
   storage.rootPath = rootPath;
-  saveStorage(storage);
-  showMessage('path: ' + rootPath);
+
+  const saved = saveStorage(storage);
+
+  if(saved){
+    showMessage('path: ' + rootPath);
+  } else {
+    showMessage(AlertMessages.rootFolderNotSaved + ' Path: ' + rootPath);
+  }
 
   const loaded = await loadDirectory();
 
