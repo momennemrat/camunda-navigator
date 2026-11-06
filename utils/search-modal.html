@@ -6,7 +6,12 @@
 </div>
 
 <label>
-  <input type="radio" name="type" value="bpmn" checked onchange="changeType(this.value)">
+  <input type="radio" name="type" value="all" checked onchange="changeType(this.value)">
+  All
+</label>
+
+<label>
+  <input type="radio" name="type" value="bpmn" onchange="changeType(this.value)">
   BPMN
 </label>
 
@@ -24,7 +29,7 @@
     const input = document.getElementById('search-input');
     const status = document.getElementById('status');
     let items = [];
-    let currentType = 'bpmn';
+    let currentType = 'all';
     let opened = false;
 
     input.addEventListener('change', (e) => {
@@ -52,7 +57,7 @@
         if (match){
             openItem(match);
         } else {
-            showStatus('No ' + currentType.toUpperCase() + ' definition matches "' + typed + '".');
+            showStatus(noMatchMessage(typed));
         }
     });
 
@@ -69,7 +74,7 @@
 
     function rebuildOptionList(){
 
-        const options = items.filter(item => item.type == currentType)
+        const options = items.filter(matchesCurrentType)
         .map(item => {
             let option = document.createElement('option');
             option.value = item.name;
@@ -87,10 +92,21 @@
         rebuildOptionList();
     }
 
+    // 'all' is the default so decisions are not hidden behind a radio button.
+    function matchesCurrentType(item){
+        return currentType === 'all' || item.type === currentType;
+    }
+
+    function noMatchMessage(typed){
+
+        const scope = currentType === 'all' ? 'definition' : currentType.toUpperCase() + ' definition';
+        return 'No ' + scope + ' matches "' + typed + '".';
+    }
+
     function findMatch(typed){
 
         const lowered = typed.toLowerCase();
-        const visible = items.filter(item => item.type == currentType);
+        const visible = items.filter(matchesCurrentType);
 
         return visible.find(item => item.name.toLowerCase() === lowered)
             || visible.find(item => item.name.toLowerCase().includes(lowered));
@@ -136,8 +152,13 @@
             const models = await ipcRenderer.invoke('get-models', null);
 
             items = models.map(model => {
+
+                // The list now mixes both kinds, so each entry says which it is.
+                const label = model.name ? `${model.name} (${model.id})` : model.id;
+                const type = model.type ? ` [${model.type.toUpperCase()}]` : '';
+
                 return {
-                    name: model.name ? `${model.name} (${model.id})` : model.id,
+                    name: label + type,
                     path: model.path,
                     type: model.type
                 }
