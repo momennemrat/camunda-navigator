@@ -57,12 +57,23 @@ let modalWindow;
 
 let isAppLoaded = false;
 let lateLogs = [];
+let lateMessages = [];
 
 
 app.once('app:client-ready', function() {
   isAppLoaded = true;
-  lateLogs.forEach(message => {
+
+  const queuedLogs = lateLogs;
+  const queuedMessages = lateMessages;
+  lateLogs = [];
+  lateMessages = [];
+
+  queuedLogs.forEach(message => {
     log('(late message) ' + message);
+  });
+
+  queuedMessages.forEach(message => {
+    showMessage(message);
   });
 });
 
@@ -257,7 +268,14 @@ async function searchDefinition(){
   app.emit('menu:action', 'open-diagram', {path: targetModel.path});
 }
 
-const showMessage = (message) => {
+function showMessage(message){
+
+
+  if(!isAppLoaded){
+    console.log('app is not loaded !, queueing message:', message);
+    lateMessages.push(message);
+    return;
+  }
 
   const options = {
     type: 'info',
