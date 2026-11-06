@@ -54,7 +54,7 @@
 
         items = models.map(model => {
             return {
-                name: `${model.name} (${model.id})`,
+                name: model.name ? `${model.name} (${model.id})` : model.id,
                 path: model.path,
                 type: model.type
             }
