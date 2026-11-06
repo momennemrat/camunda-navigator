@@ -46,6 +46,7 @@ const AlertMessages = {
   noDefinitionsFoundForSelectedelement: 'No definitions found for selected element!',
   noDefinitionsFoundInFolder: 'No definitions found in the selected folder and sub-folders!',
   couldNotReadFolder: 'Could not read the definitions folder',
+  couldNotReadSelection: 'Could not read the selected element from the Modeler.',
   rootFolderNotSaved: 'Root folder set for this session only. It could not be saved, so the Modeler will forget it on restart.',
   definitionsRefreshed: (count) => 'Definitions refreshed. ' + count + ' found.'
 }
@@ -234,25 +235,34 @@ async function searchDefinition(){
     }
   }
 
-  const processId = await app.mainWindow.webContents.executeJavaScript(`
-    (
-      document.querySelector('#bio-properties-panel-targetProcessId')?.value ||
-      // Camunda 7 Selectors
-      document.querySelector('#bio-properties-panel-calledElement')?.value ||
-      document.querySelector('[data-entry-id="calledElement"] input[name="calledElement"]')?.value ||
-      document.querySelector('input[name="calledElement"]')?.value
-    )
-  `);
+  let processId;
+  let decisionId;
 
-  const decisionId = await app.mainWindow.webContents.executeJavaScript(`
-    (
-      document.querySelector('#bio-properties-panel-decisionId')?.value ||
-      // Camunda 7 Selectors
-      document.querySelector('#bio-properties-panel-decisionRef')?.value ||
-      document.querySelector('[data-entry-id="decisionRef"] input[name="decisionRef"]')?.value ||
-      document.querySelector('input[name="decisionRef"]')?.value
-    )
-  `);
+  try {
+    processId = await readPanelValue(`
+      (
+        document.querySelector('#bio-properties-panel-targetProcessId')?.value ||
+        // Camunda 7 Selectors
+        document.querySelector('#bio-properties-panel-calledElement')?.value ||
+        document.querySelector('[data-entry-id="calledElement"] input[name="calledElement"]')?.value ||
+        document.querySelector('input[name="calledElement"]')?.value
+      )
+    `);
+
+    decisionId = await readPanelValue(`
+      (
+        document.querySelector('#bio-properties-panel-decisionId')?.value ||
+        // Camunda 7 Selectors
+        document.querySelector('#bio-properties-panel-decisionRef')?.value ||
+        document.querySelector('[data-entry-id="decisionRef"] input[name="decisionRef"]')?.value ||
+        document.querySelector('input[name="decisionRef"]')?.value
+      )
+    `);
+  } catch(error){
+    log('Could not read the properties panel: ' + error.message);
+    showMessage(AlertMessages.couldNotReadSelection);
+    return;
+  }
 
   console.log('found processId:', processId);
   console.log('found decisionId:', decisionId);
@@ -279,6 +289,17 @@ async function searchDefinition(){
   }
 
   app.emit('menu:action', 'open-diagram', {path: targetModel.path});
+}
+
+// Reads a value out of the Modeler's properties panel. Throws when there is no
+// usable window, so callers can tell a failed read from an empty field.
+async function readPanelValue(script){
+
+  if(!app.mainWindow || app.mainWindow.isDestroyed()){
+    throw new Error('No Modeler window is available.');
+  }
+
+  return await app.mainWindow.webContents.executeJavaScript(script);
 }
 
 function showMessage(message){
