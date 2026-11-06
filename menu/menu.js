@@ -2,7 +2,7 @@
 const { fetchDeepFileNames } = require('../utils/fetch-files.js');
 const { analyzeCamundafiles } = require('../utils/analyze-camunda-files.js');
 const { loadStorage, saveStorage } = require('../utils/storage.js');
-const { openSearchModal } = require('../utils/search-models.js');
+const { openSearchModal, closeSearchModal } = require('../utils/search-models.js');
 const electron = require('electron');
 const dialog = electron.dialog;
 const app = electron.app;
@@ -55,7 +55,6 @@ const AlertMessages = {
 let models = [];
 let rootPath = null;
 let storage = {};
-let modalWindow;
 
 let isAppLoaded = false;
 let lateLogs = [];
@@ -91,9 +90,7 @@ function startUp(){
 }
 
 ipcMain.on('search-modal-action', (event, id) => {
-  if(modalWindow && !modalWindow.isDestroyed()){
-    modalWindow.close();
-  }
+  closeSearchModal();
   app.emit('menu:action', 'open-diagram', {path: id});
 });
 
@@ -119,7 +116,7 @@ module.exports = function(electronApp, menuState) {
     {
       label: lables.searchDefinitions,
       accelerator: KeyboardShortcuts.searchDefinitions,
-      action: async () => { modalWindow = openSearchModal(); }
+      action: async () => { openSearchModal(); }
     },
 
     {
