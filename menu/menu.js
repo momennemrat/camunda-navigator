@@ -33,7 +33,7 @@ const EXCLUDED_FOLDERS = [
   '.mvn'
 ];
 
-const lables = {
+const labels = {
   goToElementDefinition: 'Go to element definition',
   searchDefinitions: 'Search definitions',
   refreshDefinitions: 'Refresh definitions',
@@ -43,7 +43,7 @@ const lables = {
 const AlertMessages = {
   chooseRootFolderFirst: 'Choose root folder that contains all definitions (BPMNs and DMNs)',
   noSelected: 'No process/decision selected!',
-  noDefinitionsFoundForSelectedelement: 'No definitions found for selected element!',
+  noDefinitionsFoundForSelectedElement: 'No definitions found for selected element!',
   noDefinitionsFoundInFolder: 'No definitions found in the selected folder and sub-folders!',
   couldNotReadFolder: 'Could not read the definitions folder',
   couldNotReadSelection: 'Could not read the selected element from the Modeler.',
@@ -111,26 +111,26 @@ startUp();
 module.exports = function(electronApp, menuState) {
   return [
     {
-      label: lables.goToElementDefinition,
+      label: labels.goToElementDefinition,
       accelerator: KeyboardShortcuts.goToElementDefinition,
       enabled: () => menuState.elementsSelected,
       action: async () => { searchDefinition(); }
     },
 
     {
-      label: lables.searchDefinitions,
+      label: labels.searchDefinitions,
       accelerator: KeyboardShortcuts.searchDefinitions,
       action: async () => { openSearchModal(); }
     },
 
     {
-      label: lables.refreshDefinitions,
+      label: labels.refreshDefinitions,
       accelerator: KeyboardShortcuts.refreshDefinitions,
       action: async () => { await refreshDefinitions(); }
     },
 
     {
-      label: lables.resetRootFolder,
+      label: labels.resetRootFolder,
       action: async () => { await initDirectory(); }
     },
   ];
@@ -279,7 +279,7 @@ async function searchDefinition(){
 
   if(matches.length === 0){
 
-    showMessage(AlertMessages.noDefinitionsFoundForSelectedelement);
+    showMessage(AlertMessages.noDefinitionsFoundForSelectedElement);
     return;
   }
 
@@ -323,7 +323,6 @@ function showMessage(message){
 
 function log(...args){
 
-  args = args?? [''];
   
   let message = '' + args.join(' ');
 
