@@ -33,6 +33,27 @@
     color: #333;
   }
 
+  .search-box {
+    position: relative;
+  }
+
+  /* A placeholder cannot hold markup, so this overlay draws the underlined
+     access key. It only shows while the input is empty and enabled. */
+  #search-hint {
+    display: none;
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: #aaa;
+    pointer-events: none;
+  }
+
+  #search-input:placeholder-shown:not(:disabled) + #search-hint {
+    display: block;
+  }
+
   #search-input::placeholder {
     color: #aaa;
   }
@@ -93,6 +114,16 @@
     color: #555;
   }
 
+  .result-type-bpmn {
+    background: #dff2e1;
+    color: #2e7d32;
+  }
+
+  .result-type-dmn {
+    background: #dcebfa;
+    color: #1565c0;
+  }
+
   .result-path {
     display: block;
     font-size: 11px;
@@ -100,6 +131,14 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    /* rtl puts the ellipsis on the left so the end of the path stays visible */
+    direction: rtl;
+    text-align: left;
+  }
+
+  .result-path > span {
+    direction: ltr;
+    unicode-bidi: isolate;
   }
 
   #status {
@@ -113,23 +152,24 @@
 <body>
 
   <div class="search-box">
-    <input id="search-input" placeholder="Search models..." autocomplete="off" autofocus>
+    <input id="search-input" placeholder=" " accesskey="s" autocomplete="off" autofocus>
+    <span id="search-hint"><u>S</u>earch models...</span>
   </div>
 
   <div class="filters">
   <label>
-    <input type="radio" name="type" value="all" checked onchange="changeType(this.value)">
-    All
+    <input type="radio" name="type" value="all" accesskey="a" onchange="changeType(this.value)">
+    <u>A</u>ll
   </label>
 
   <label>
-    <input type="radio" name="type" value="bpmn" onchange="changeType(this.value)">
-    BPMN
+    <input type="radio" name="type" value="bpmn" accesskey="b" checked onchange="changeType(this.value)">
+    <u>B</u>PMN
   </label>
 
   <label>
-    <input type="radio" name="type" value="dmn" onchange="changeType(this.value)">
-    DMN
+    <input type="radio" name="type" value="dmn" accesskey="d" onchange="changeType(this.value)">
+    <u>D</u>MN
   </label>
 
   <span id="count"></span>
@@ -147,7 +187,7 @@
     const input = document.getElementById('search-input');
     const status = document.getElementById('status');
     let items = [];
-    let currentType = 'all';
+    let currentType = 'bpmn';
     let opened = false;
     let visible = [];
     let activeIndex = 0;
@@ -224,12 +264,15 @@
             label.textContent = item.label;
 
             const type = document.createElement('span');
-            type.className = 'result-type';
+            type.className = 'result-type result-type-' + item.type;
             type.textContent = item.type ? item.type.toUpperCase() : '';
 
             const itemPath = document.createElement('span');
             itemPath.className = 'result-path';
-            itemPath.textContent = item.path;
+            const pathText = document.createElement('span');
+            pathText.textContent = item.path.replace(/\.(bpmn|dmn)$/i, '');
+            itemPath.title = item.path;
+            itemPath.appendChild(pathText);
 
             row.append(label, type, itemPath);
             return row;
@@ -315,7 +358,7 @@
 
     function clearEmptyState(){
 
-        input.placeholder = 'Search models...';
+        input.placeholder = ' ';
         input.title = '';
         input.disabled = false;
     }
