@@ -20,8 +20,11 @@ function openSearchModal(){
     }
 
     const window = new BrowserWindow({
-        width: 520,
-        height: 200,
+        useContentSize: true,
+        width: 560,
+        height: 420,
+        minimizable: false,
+        maximizable: false,
         parent: BrowserWindow.getFocusedWindow(),
         resizable: false,
         fullscreenable: false,
