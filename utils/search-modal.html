@@ -22,6 +22,7 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 1px rgba(0, 0, 0, 0.2);
     overflow: hidden;
     border: 1px solid #d1d1d1;
+    position: relative;
   }
 
   #search-input {
@@ -31,10 +32,6 @@
     border: none;
     outline: none;
     color: #333;
-  }
-
-  .search-box {
-    position: relative;
   }
 
   /* A placeholder cannot hold markup, so this overlay draws the underlined
@@ -100,6 +97,9 @@
 
   .result-label {
     display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: 14px;
     color: #333;
   }
@@ -152,7 +152,7 @@
 <body>
 
   <div class="search-box">
-    <input id="search-input" placeholder=" " accesskey="s" autocomplete="off" autofocus>
+    <input id="search-input" role="combobox" aria-autocomplete="list" aria-controls="results" aria-expanded="true" placeholder=" " accesskey="s" autocomplete="off" autofocus>
     <span id="search-hint"><u>S</u>earch models...</span>
   </div>
 
@@ -229,8 +229,8 @@
         }
     });
 
-    // Escape closes the palette. defaultPrevented is respected so that a key
-    // already consumed by the native suggestion popup does not also close it.
+    // Escape closes the palette. defaultPrevented is skipped so that a key
+    // already handled elsewhere does not also close the window.
     document.addEventListener('keydown', (e) => {
 
         if (e.key === 'Escape' && !e.defaultPrevented){
@@ -258,10 +258,13 @@
             row.className = 'result';
             row.setAttribute('role', 'option');
             row.dataset.index = String(index);
+            row.id = 'result-' + index;
+            row.setAttribute('aria-selected', 'false');
 
             const label = document.createElement('span');
             label.className = 'result-label';
             label.textContent = item.label;
+            label.title = item.label;
 
             const type = document.createElement('span');
             type.className = 'result-type result-type-' + item.type;
@@ -274,7 +277,7 @@
             itemPath.title = item.path;
             itemPath.appendChild(pathText);
 
-            row.append(label, type, itemPath);
+            row.append(type, label, itemPath);
             return row;
         });
 
@@ -283,6 +286,10 @@
         activeIndex = 0;
         if (rows.length > 0){
             rows[0].classList.add('active');
+            rows[0].setAttribute('aria-selected', 'true');
+            input.setAttribute('aria-activedescendant', rows[0].id);
+        } else {
+            input.removeAttribute('aria-activedescendant');
         }
 
         if (visible.length === 0){
@@ -290,7 +297,7 @@
         } else if (visible.length > MAX_RESULTS){
             count.textContent = 'first ' + MAX_RESULTS + ' of ' + visible.length;
         } else {
-            count.textContent = visible.length + ' results';
+            count.textContent = visible.length === 1 ? '1 result' : `${visible.length} results`;
         }
 
         if (visible.length === 0 && query){
@@ -306,10 +313,13 @@
 
         if (rows[activeIndex]){
             rows[activeIndex].classList.remove('active');
+            rows[activeIndex].setAttribute('aria-selected', 'false');
         }
 
         activeIndex = index;
         rows[activeIndex].classList.add('active');
+        rows[activeIndex].setAttribute('aria-selected', 'true');
+        input.setAttribute('aria-activedescendant', rows[activeIndex].id);
         rows[activeIndex].scrollIntoView({ block: 'nearest' });
     }
 
@@ -319,7 +329,7 @@
         render();
     }
 
-    // 'all' is the default so decisions are not hidden behind a radio button.
+    // BPMN is the default filter. 'all' merges both kinds into one list.
     function matchesCurrentType(item){
         return currentType === 'all' || item.type === currentType;
     }
