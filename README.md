@@ -4,8 +4,9 @@
 [![Camunda 7](https://img.shields.io/badge/Camunda%207-supported-green)](https://docs.camunda.org/)
 [![Camunda 8](https://img.shields.io/badge/Camunda%208-supported-green)](https://docs.camunda.io/)
 [![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Release](https://github.com/momennemrat/camunda-navigator/actions/workflows/release.yml/badge.svg)](https://github.com/momennemrat/camunda-navigator/actions/workflows/release.yml)
 
-**Camunda Navigator** brings IDE-grade navigation to the Camunda Modeler. Stop hunting through folders—instantly jump between Call Activities, Business Rule Tasks, and global definitions.
+**Camunda Navigator** brings IDE-grade navigation to the Camunda Modeler. Stop hunting through folders, and jump straight to Call Activities, Business Rule Tasks, and global definitions.
 
 ## 🚀 Features
 
@@ -55,11 +56,12 @@ The first time you trigger a command, the plugin will ask you to select your **R
 
 ### ⚡ Quick Search
 1. Press `Cmd/Ctrl + Shift + F`.
-2. Start typing the name of any process or decision.
-3. Use arrow keys to select and hit **Enter** to open.
+2. Start typing a process or decision name. Matches appear as you type.
+3. Click a row to open, or use the arrow keys to move and Enter to open.
 
 ### 📂 Menu Access
-A new **"Navigator"** menu will appear in the Modeler toolbar, containing:
+In Modeler **Plugins** menu you will find them at
+**Plugins > Camunda Navigator**:
 *   `Go to element definition`
 *   `Search definitions`
 *   `Refresh definitions`
