@@ -32,8 +32,9 @@ function openSearchModal(){
         title: 'Search definitions',
         show: false,
         webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false
+            preload: path.join(__dirname, 'search-preload.js'),
+            nodeIntegration: false,
+            contextIsolation: true
         }
     });
 

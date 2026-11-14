@@ -161,8 +161,6 @@
   <div id="status" role="status" aria-live="polite"></div>
 
 <script>
-    const { ipcRenderer } = require('electron');
-
     const results = document.getElementById('results');
     const count = document.getElementById('count');
     const input = document.getElementById('search-input');
@@ -329,7 +327,7 @@
         }
 
         opened = true;
-        ipcRenderer.send('search-modal-action', item.path);
+        window.navigatorApi.openModel(item.path);
     }
 
     function showStatus(message){
@@ -359,7 +357,7 @@
 
         try {
 
-            const models = await ipcRenderer.invoke('get-models', null);
+            const models = await window.navigatorApi.getModels();
 
             items = models.map(model => {
 
@@ -377,7 +375,7 @@
 
             if (items.length === 0){
 
-                const rootPath = await ipcRenderer.invoke('get-root-path');
+                const rootPath = await window.navigatorApi.getRootPath();
 
                 showEmptyState(
                     rootPath
