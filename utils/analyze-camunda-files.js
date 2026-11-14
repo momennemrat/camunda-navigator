@@ -74,7 +74,32 @@ const attributeValue = (pattern, attributes) => {
         return undefined;
     }
 
-    return match[1] !== undefined ? match[1] : match[2];
+    const value = match[1] !== undefined ? match[1] : match[2];
+
+    return decodeXmlEntities(value);
+}
+
+const NAMED_ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+const XML_ENTITY = /&(?:#(\d+)|#[xX]([0-9a-fA-F]+)|(amp|lt|gt|quot|apos));/g;
+
+const decodeXmlEntities = (text) => {
+
+    return text.replace(XML_ENTITY, (whole, decimal, hex, named) => {
+
+        if(named !== undefined){
+            return NAMED_ENTITIES[named];
+        }
+
+        const code = decimal !== undefined ? parseInt(decimal, 10) : parseInt(hex, 16);
+
+        // Control characters have no place in a one-line label, and
+        // fromCodePoint throws above 0x10FFFF, so both stay as written.
+        if(!Number.isFinite(code) || code < 0x20 || code > 0x10FFFF){
+            return whole;
+        }
+
+        return String.fromCodePoint(code);
+    });
 }
 
 const extractModels = (content, fileType) => {
