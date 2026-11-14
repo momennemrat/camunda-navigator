@@ -1,5 +1,17 @@
 const fs = require('fs');
 
+// Opening tags: any namespace prefix, attributes in any order, across
+// lines. Only well-formed name="value" pairs are consumed, so a literal
+// > inside an attribute value cannot end the match early.
+const TAG_ATTRIBUTES = '((?:\\s+[A-Za-z0-9_.:-]+\\s*=\\s*(?:"[^"]*"|\'[^\']*\'))*)\\s*/?>';
+const PROCESS_TAG = new RegExp('<(?:[A-Za-z0-9_.-]+:)?process' + TAG_ATTRIBUTES, 'g');
+const DECISION_TAG = new RegExp('<(?:[A-Za-z0-9_.-]+:)?decision' + TAG_ATTRIBUTES, 'g');
+
+// Anchored on whitespace or the start, so camunda:id or xsi:name are not
+// mistaken for id or name.
+const ID_ATTRIBUTE = /(?:^|\s)id\s*=\s*(?:"([^"]*)"|'([^']*)')/;
+const NAME_ATTRIBUTE = /(?:^|\s)name\s*=\s*(?:"([^"]*)"|'([^']*)')/;
+
 
 const analyzeCamundafiles = (filePaths) => {
 
@@ -15,26 +27,17 @@ const analyzeCamundafiles = (filePaths) => {
             return null;
         }
         const fileType = path.endsWith('.dmn')? 'dmn': 'bpmn';
-        let founds = null;
-        let models = [];
+        const founds = extractModels(content, fileType);
 
-        if(fileType == 'bpmn'){
-            founds = [...content.matchAll(/<bpmn:process[ ]+id="([^"]*)"(?:[ ]+name="([^"]*))?/g)];
-        } else if(fileType == 'dmn') {
-            founds = [...content.matchAll(/<decision id="([^"]*)"(?:[ ]+name="([^"]*))?/g)];
-        }
+        const models = founds.map(found => {
 
-        if(founds?.length){
-            models = founds.map(found => {
-
-                return {
-                    id: found[1],
-                    name: found[2],
-                    path: path,
-                    type: fileType,
-                }
-            })
-        }
+            return {
+                id: found.id,
+                name: found.name,
+                path: path,
+                type: fileType,
+            }
+        });
 
         return {
             path: path,
@@ -65,6 +68,45 @@ const readFileContent = (filePath)=> {
         console.warn('Cannot read file, skipping: ' + filePath + ' (' + error.message + ')');
         return null;
     }
+}
+
+const attributeValue = (pattern, attributes) => {
+
+    const match = pattern.exec(attributes);
+
+    if(match == null){
+        return undefined;
+    }
+
+    // group 1 is the double-quoted form, group 2 the single-quoted one
+    return match[1] !== undefined ? match[1] : match[2];
+}
+
+const extractModels = (content, fileType) => {
+
+    const tagPattern = fileType == 'dmn' ? DECISION_TAG : PROCESS_TAG;
+    tagPattern.lastIndex = 0;
+
+    const found = [];
+    let match;
+
+    while((match = tagPattern.exec(content)) !== null){
+
+        const attributes = match[1] || '';
+        const id = attributeValue(ID_ATTRIBUTE, attributes);
+
+        // A tag with no id is not a definition we can navigate to.
+        if(id === undefined){
+            continue;
+        }
+
+        found.push({
+            id: id,
+            name: attributeValue(NAME_ATTRIBUTE, attributes)
+        });
+    }
+
+    return found;
 }
 
 
