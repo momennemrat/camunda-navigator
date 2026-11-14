@@ -208,9 +208,7 @@
             openItem(visible[Number(row.dataset.index)]);
         }
     });
-
-    // Escape closes the palette. defaultPrevented is skipped so that a key
-    // already handled elsewhere does not also close the window.
+    
     document.addEventListener('keydown', (e) => {
 
         if (e.key === 'Escape' && !e.defaultPrevented){
@@ -219,9 +217,7 @@
     });
 
     function render(){
-
-        // The window paints before the main process has finished indexing, and
-        // an empty list would otherwise read as "no match".
+        
         if (loading){
             results.replaceChildren();
             count.textContent = '';
@@ -238,7 +234,6 @@
             .filter(matchesCurrentType)
             .filter(item => item.search.includes(query));
 
-        // Entries that start with the query first, original order kept in each group.
         visible = [
             ...matches.filter(item => item.search.startsWith(query)),
             ...matches.filter(item => !item.search.startsWith(query))
@@ -322,7 +317,6 @@
         input.focus();
     }
 
-    // BPMN is the default filter. 'all' merges both kinds into one list.
     function matchesCurrentType(item){
         return currentType === 'all' || item.type === currentType;
     }
@@ -406,9 +400,7 @@
         } finally {
 
             loading = false;
-
-            // showEmptyState disabled the box and owns the placeholder, so only
-            // drop the loading message there instead of rendering over it.
+            
             if (input.disabled){
                 clearStatus();
             } else {
@@ -423,9 +415,7 @@
             loadItems();
         }
     });
-
-    // Paint the loading state before the first await, otherwise the palette
-    // sits blank until the user happens to type something.
+    
     render();
     loadItems();
 

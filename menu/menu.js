@@ -18,7 +18,6 @@ const KeyboardShortcuts = {
 const MAX_FOLDER_DEPTH = 20;
 const DEFINITION_EXTENSIONS = ['.bpmn', '.dmn'];
 
-// Folders never worth scanning for BPMN/DMN definitions.
 const EXCLUDED_FOLDERS = [
   'node_modules',
   '.git',
@@ -88,7 +87,6 @@ function startUp(){
   
   if(rootPath != null){
     log('path found:', rootPath);
-    // Module load must return immediately, so the index builds on the next tick.
     setImmediate(() => {
       ensureIndex().catch(error => log('Indexing failed: ' + error.message));
     });
@@ -184,8 +182,7 @@ async function refreshDefinitions(){
   const result = await ensureIndex();
 
   if(result === 'failed' || result === 'superseded'){
-    // 'failed' was already reported by loadDirectory, 'superseded' means a
-    // newer build owns the list now
+    // 'failed' => already reported by loadDirectory, 'superseded' => newer build owns the list now
     return;
   }
 
@@ -198,11 +195,10 @@ async function refreshDefinitions(){
 }
 
 function selectDirectory() {
-  const window = BrowserWindow.getFocusedWindow(); // Get the current focused window
-  // showOpenDialogSync returns the selected paths, or undefined when cancelled
+  const window = BrowserWindow.getFocusedWindow();
   const result = dialog.showOpenDialogSync(window, {
-    title: 'Please choose the root folder for all BPMN/DMN files', // The message/title
-    properties: ['openDirectory'] // Specify that only directories can be selected
+    title: 'Please choose the root folder for all BPMN/DMN files',
+    properties: ['openDirectory']
   });
 
   if (!result || result.length === 0) {
@@ -215,8 +211,6 @@ function selectDirectory() {
   return folderPath;
 }
 
-// Every consumer awaits this one promise, so a folder is never indexed twice
-// concurrently and no caller can observe a half-built list.
 function ensureIndex(){
 
   if(rootPath == null){
@@ -228,7 +222,6 @@ function ensureIndex(){
     const generation = indexGeneration;
 
     indexPromise = loadDirectory(generation).catch(error => {
-      // Do not poison the memo: a later Refresh must be able to retry.
       if(generation === indexGeneration){
         indexPromise = null;
       }
@@ -261,7 +254,6 @@ async function loadDirectory(generation){
     found = await analyzeCamundafiles(paths)?? [];
   } catch(error){
 
-    // The root changed under us; the newer build owns `models` now.
     if(generation !== indexGeneration){
       return 'superseded';
     }
@@ -272,8 +264,6 @@ async function loadDirectory(generation){
     return 'failed';
   }
 
-  // selectDirectory opens a native dialog that pumps the event loop, so an
-  // older build can finish after a newer root was picked. Never let it publish.
   if(generation !== indexGeneration){
     return 'superseded';
   }
@@ -349,8 +339,6 @@ async function searchDefinition(){
   app.emit('menu:action', 'open-diagram', {path: targetModel.path});
 }
 
-// Reads a value out of the Modeler's properties panel. Throws when there is no
-// usable window, so callers can tell a failed read from an empty field.
 async function readPanelValue(script){
 
   if(!app.mainWindow || app.mainWindow.isDestroyed()){

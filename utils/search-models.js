@@ -2,9 +2,6 @@ const electron = require('electron');
 const path = require('path');
 const BrowserWindow = electron.BrowserWindow;
 
-// Only one search modal may exist at a time. Every call used to build a fresh
-// BrowserWindow, so repeat triggers stacked windows and the caller kept a
-// reference to the newest one only, leaving the rest unreachable.
 let modalWindow = null;
 
 function openSearchModal(){
