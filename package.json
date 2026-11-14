@@ -1,6 +1,6 @@
 {
   "name": "camunda-navigator",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "IDE-style navigation for Camunda Modeler: Go to definition (BPMN/DMN) and global search.",
   "main": "index.js",
   "keywords": [
