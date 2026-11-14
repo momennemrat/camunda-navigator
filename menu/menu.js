@@ -54,6 +54,8 @@ const AlertMessages = {
 
 
 let models = [];
+let indexPromise = null;
+let indexGeneration = 0;
 let rootPath = null;
 let storage = {};
 
@@ -86,7 +88,10 @@ function startUp(){
   
   if(rootPath != null){
     log('path found:', rootPath);
-    loadDirectory();
+    // Module load must return immediately, so the index builds on the next tick.
+    setImmediate(() => {
+      ensureIndex().catch(error => log('Indexing failed: ' + error.message));
+    });
   }
 }
 
@@ -96,6 +101,7 @@ ipcMain.on('search-modal-action', (event, id) => {
 });
 
 ipcMain.handle('get-models', async (event, data) => {
+  await ensureIndex();
   return models;
 });
 
@@ -159,9 +165,10 @@ async function initDirectory(){
     showMessage(AlertMessages.rootFolderNotSaved + ' Path: ' + rootPath);
   }
 
-  const loaded = await loadDirectory();
+  invalidateIndex();
+  const result = await ensureIndex();
 
-  if(loaded && models.length == 0){
+  if(result === 'ok' && models.length == 0){
     showMessage(AlertMessages.noDefinitionsFoundInFolder);
   }
 }
@@ -173,10 +180,12 @@ async function refreshDefinitions(){
     return;
   }
 
-  const loaded = await loadDirectory();
+  invalidateIndex();
+  const result = await ensureIndex();
 
-  if(!loaded){
-    // loadDirectory already reported the failure
+  if(result === 'failed' || result === 'superseded'){
+    // 'failed' was already reported by loadDirectory, 'superseded' means a
+    // newer build owns the list now
     return;
   }
 
@@ -206,26 +215,71 @@ function selectDirectory() {
   return folderPath;
 }
 
-async function loadDirectory(){
-  
-  log('storage folder path: '+ rootPath);
+// Every consumer awaits this one promise, so a folder is never indexed twice
+// concurrently and no caller can observe a half-built list.
+function ensureIndex(){
+
+  if(rootPath == null){
+    return Promise.resolve('no-root');
+  }
+
+  if(indexPromise == null){
+
+    const generation = indexGeneration;
+
+    indexPromise = loadDirectory(generation).catch(error => {
+      // Do not poison the memo: a later Refresh must be able to retry.
+      if(generation === indexGeneration){
+        indexPromise = null;
+      }
+      throw error;
+    });
+  }
+
+  return indexPromise;
+}
+
+function invalidateIndex(){
+  indexGeneration++;
+  indexPromise = null;
+}
+
+async function loadDirectory(generation){
+
+  const folderPath = rootPath;
+
+  log('storage folder path: '+ folderPath);
+
+  let found;
 
   try {
-    const paths = fetchDeepFileNames(rootPath, {
+    const paths = fetchDeepFileNames(folderPath, {
       maxDepth: MAX_FOLDER_DEPTH,
       excludedFolders: EXCLUDED_FOLDERS,
       extensions: DEFINITION_EXTENSIONS
     });
-    models = analyzeCamundafiles(paths)?? [];
-    return true;
+    found = await analyzeCamundafiles(paths)?? [];
   } catch(error){
+
+    // The root changed under us; the newer build owns `models` now.
+    if(generation !== indexGeneration){
+      return 'superseded';
+    }
+
     models = [];
     log(AlertMessages.couldNotReadFolder + ': ' + error.message);
     showMessage(AlertMessages.couldNotReadFolder + ': ' + error.message);
-    return false;
+    return 'failed';
   }
-  
-  //showMessage('models found: ' + models.length);
+
+  // selectDirectory opens a native dialog that pumps the event loop, so an
+  // older build can finish after a newer root was picked. Never let it publish.
+  if(generation !== indexGeneration){
+    return 'superseded';
+  }
+
+  models = found;
+  return 'ok';
 }
 
 async function searchDefinition(){
@@ -277,6 +331,7 @@ async function searchDefinition(){
   }
 
   const targetId = processId || decisionId;
+  await ensureIndex();
   const matches = models.filter(model => model.id === targetId);
 
   if(matches.length === 0){

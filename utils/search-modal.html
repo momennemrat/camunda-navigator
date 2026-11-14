@@ -167,6 +167,7 @@
     const status = document.getElementById('status');
     let items = [];
     let currentType = 'bpmn';
+    let loading = true;
     let opened = false;
     let visible = [];
     let activeIndex = 0;
@@ -218,6 +219,18 @@
     });
 
     function render(){
+
+        // The window paints before the main process has finished indexing, and
+        // an empty list would otherwise read as "no match".
+        if (loading){
+            results.replaceChildren();
+            count.textContent = '';
+            input.removeAttribute('aria-activedescendant');
+            visible = [];
+            activeIndex = 0;
+            showStatus('Indexing definitions...');
+            return;
+        }
 
         const query = input.value.trim().toLowerCase();
 
@@ -390,6 +403,17 @@
         } catch (error) {
             console.error("Error fetching data:", error);
             showEmptyState('Could not load the definition list.');
+        } finally {
+
+            loading = false;
+
+            // showEmptyState disabled the box and owns the placeholder, so only
+            // drop the loading message there instead of rendering over it.
+            if (input.disabled){
+                clearStatus();
+            } else {
+                render();
+            }
         }
     }
 
@@ -400,6 +424,9 @@
         }
     });
 
+    // Paint the loading state before the first await, otherwise the palette
+    // sits blank until the user happens to type something.
+    render();
     loadItems();
 
     
