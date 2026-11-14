@@ -2,7 +2,7 @@
 const { fetchDeepFileNames } = require('../utils/fetch-files.js');
 const { analyzeCamundafiles } = require('../utils/analyze-camunda-files.js');
 const { loadStorage, saveStorage } = require('../utils/storage.js');
-const { openSearchModal } = require('../utils/search-models.js');
+const { openSearchModal, closeSearchModal } = require('../utils/search-models.js');
 const electron = require('electron');
 const dialog = electron.dialog;
 const app = electron.app;
@@ -11,10 +11,12 @@ const ipcMain = electron.ipcMain;
 
 const KeyboardShortcuts = {
   goToElementDefinition: 'CommandOrControl+g',
-  searchDefinitions: 'CommandOrControl+Shift+f'
+  searchDefinitions: 'CommandOrControl+Shift+f',
+  refreshDefinitions: 'CommandOrControl+Shift+r'
 }
 
 const MAX_FOLDER_DEPTH = 20;
+const DEFINITION_EXTENSIONS = ['.bpmn', '.dmn'];
 
 // Folders never worth scanning for BPMN/DMN definitions.
 const EXCLUDED_FOLDERS = [
@@ -32,34 +34,48 @@ const EXCLUDED_FOLDERS = [
   '.mvn'
 ];
 
-const lables = {
+const labels = {
   goToElementDefinition: 'Go to element definition',
   searchDefinitions: 'Search definitions',
-  resetRootFolder: 'Reset root folder for definitions (BPMN/DMN)'
+  refreshDefinitions: 'Refresh definitions',
+  resetRootFolder: 'Reset root folder'
 }
 
 const AlertMessages = {
   chooseRootFolderFirst: 'Choose root folder that contains all definitions (BPMNs and DMNs)',
   noSelected: 'No process/decision selected!',
-  noDefinitionsFoundForSelectedelement: 'No definitions found for selected element!',
+  noDefinitionsFoundForSelectedElement: 'No definitions found for selected element!',
   noDefinitionsFoundInFolder: 'No definitions found in the selected folder and sub-folders!',
-  couldNotReadFolder: 'Could not read the definitions folder'
+  couldNotReadFolder: 'Could not read the definitions folder',
+  couldNotReadSelection: 'Could not read the selected element from the Modeler.',
+  rootFolderNotSaved: 'Root folder set for this session only. It could not be saved, so the Modeler will forget it on restart.',
+  definitionsRefreshed: (count) => 'Definitions refreshed. ' + count + ' found.'
 }
 
 
 let models = [];
 let rootPath = null;
 let storage = {};
-let modalWindow;
 
 let isAppLoaded = false;
 let lateLogs = [];
+let lateMessages = [];
 
 
 app.once('app:client-ready', function() {
   isAppLoaded = true;
-  lateLogs.forEach(message => {
+
+  const queuedLogs = lateLogs;
+  const queuedMessages = lateMessages;
+  lateLogs = [];
+  lateMessages = [];
+
+  queuedLogs.forEach(message => {
     log('(late message) ' + message);
+  });
+
+  queuedMessages.forEach(message => {
+    showMessage(message);
   });
 });
 
@@ -75,14 +91,16 @@ function startUp(){
 }
 
 ipcMain.on('search-modal-action', (event, id) => {
-  if(modalWindow && !modalWindow.isDestroyed()){
-    modalWindow.close();
-  }
+  closeSearchModal();
   app.emit('menu:action', 'open-diagram', {path: id});
 });
 
 ipcMain.handle('get-models', async (event, data) => {
   return models;
+});
+
+ipcMain.handle('get-root-path', async (event) => {
+  return rootPath;
 });
 
 
@@ -94,20 +112,26 @@ startUp();
 module.exports = function(electronApp, menuState) {
   return [
     {
-      label: lables.goToElementDefinition,
+      label: labels.goToElementDefinition,
       accelerator: KeyboardShortcuts.goToElementDefinition,
       enabled: () => menuState.elementsSelected,
       action: async () => { searchDefinition(); }
     },
 
     {
-      label: lables.searchDefinitions,
+      label: labels.searchDefinitions,
       accelerator: KeyboardShortcuts.searchDefinitions,
-      action: async () => { modalWindow = openSearchModal(); }
+      action: async () => { openSearchModal(); }
     },
 
     {
-      label: lables.resetRootFolder,
+      label: labels.refreshDefinitions,
+      accelerator: KeyboardShortcuts.refreshDefinitions,
+      action: async () => { await refreshDefinitions(); }
+    },
+
+    {
+      label: labels.resetRootFolder,
       action: async () => { await initDirectory(); }
     },
   ];
@@ -126,12 +150,42 @@ async function initDirectory(){
 
   rootPath = folderPath;
   storage.rootPath = rootPath;
-  saveStorage(storage);
-  showMessage('path: ' + rootPath);
-  await loadDirectory();
-  if(models.length == 0){
+
+  const saved = saveStorage(storage);
+
+  if(saved){
+    showMessage('path: ' + rootPath);
+  } else {
+    showMessage(AlertMessages.rootFolderNotSaved + ' Path: ' + rootPath);
+  }
+
+  const loaded = await loadDirectory();
+
+  if(loaded && models.length == 0){
     showMessage(AlertMessages.noDefinitionsFoundInFolder);
   }
+}
+
+async function refreshDefinitions(){
+
+  if(rootPath == null){
+    showMessage(AlertMessages.chooseRootFolderFirst);
+    return;
+  }
+
+  const loaded = await loadDirectory();
+
+  if(!loaded){
+    // loadDirectory already reported the failure
+    return;
+  }
+
+  if(models.length == 0){
+    showMessage(AlertMessages.noDefinitionsFoundInFolder);
+    return;
+  }
+
+  showMessage(AlertMessages.definitionsRefreshed(models.length));
 }
 
 function selectDirectory() {
@@ -159,13 +213,16 @@ async function loadDirectory(){
   try {
     const paths = fetchDeepFileNames(rootPath, {
       maxDepth: MAX_FOLDER_DEPTH,
-      excludedFolders: EXCLUDED_FOLDERS
+      excludedFolders: EXCLUDED_FOLDERS,
+      extensions: DEFINITION_EXTENSIONS
     });
     models = analyzeCamundafiles(paths)?? [];
+    return true;
   } catch(error){
     models = [];
     log(AlertMessages.couldNotReadFolder + ': ' + error.message);
     showMessage(AlertMessages.couldNotReadFolder + ': ' + error.message);
+    return false;
   }
   
   //showMessage('models found: ' + models.length);
@@ -175,27 +232,40 @@ async function searchDefinition(){
   if(rootPath == null){
     showMessage(AlertMessages.chooseRootFolderFirst)
     await initDirectory();
+
+    if(rootPath == null){
+      return;
+    }
   }
 
-  const processId = await app.mainWindow.webContents.executeJavaScript(`
-    (
-      document.querySelector('#bio-properties-panel-targetProcessId')?.value ||
-      // Camunda 7 Selectors
-      document.querySelector('#bio-properties-panel-calledElement')?.value ||
-      document.querySelector('[data-entry-id="calledElement"] input[name="calledElement"]')?.value ||
-      document.querySelector('input[name="calledElement"]')?.value
-    )
-  `);
+  let processId;
+  let decisionId;
 
-  const decisionId = await app.mainWindow.webContents.executeJavaScript(`
-    (
-      document.querySelector('#bio-properties-panel-decisionId')?.value ||
-      // Camunda 7 Selectors
-      document.querySelector('#bio-properties-panel-decisionRef')?.value ||
-      document.querySelector('[data-entry-id="decisionRef"] input[name="decisionRef"]')?.value ||
-      document.querySelector('input[name="decisionRef"]')?.value
-    )
-  `);
+  try {
+    processId = await readPanelValue(`
+      (
+        document.querySelector('#bio-properties-panel-targetProcessId')?.value ||
+        // Camunda 7 Selectors
+        document.querySelector('#bio-properties-panel-calledElement')?.value ||
+        document.querySelector('[data-entry-id="calledElement"] input[name="calledElement"]')?.value ||
+        document.querySelector('input[name="calledElement"]')?.value
+      )
+    `);
+
+    decisionId = await readPanelValue(`
+      (
+        document.querySelector('#bio-properties-panel-decisionId')?.value ||
+        // Camunda 7 Selectors
+        document.querySelector('#bio-properties-panel-decisionRef')?.value ||
+        document.querySelector('[data-entry-id="decisionRef"] input[name="decisionRef"]')?.value ||
+        document.querySelector('input[name="decisionRef"]')?.value
+      )
+    `);
+  } catch(error){
+    log('Could not read the properties panel: ' + error.message);
+    showMessage(AlertMessages.couldNotReadSelection);
+    return;
+  }
 
   console.log('found processId:', processId);
   console.log('found decisionId:', decisionId);
@@ -207,18 +277,42 @@ async function searchDefinition(){
   }
 
   const targetId = processId || decisionId;
-  const targetModel = models.find(model => model.id == targetId);
+  const matches = models.filter(model => model.id === targetId);
 
-  if(!targetModel){
+  if(matches.length === 0){
 
-    showMessage(AlertMessages.noDefinitionsFoundForSelectedelement);
+    showMessage(AlertMessages.noDefinitionsFoundForSelectedElement);
     return;
+  }
+
+  const targetModel = matches[0];
+
+  if(matches.length > 1){
+    log('Multiple definitions with the id ' + targetId + ', opening ' + targetModel.path + '. All matches: ' + matches.map(match => match.path).join(', '));
   }
 
   app.emit('menu:action', 'open-diagram', {path: targetModel.path});
 }
 
-const showMessage = (message) => {
+// Reads a value out of the Modeler's properties panel. Throws when there is no
+// usable window, so callers can tell a failed read from an empty field.
+async function readPanelValue(script){
+
+  if(!app.mainWindow || app.mainWindow.isDestroyed()){
+    throw new Error('No Modeler window is available.');
+  }
+
+  return await app.mainWindow.webContents.executeJavaScript(script);
+}
+
+function showMessage(message){
+
+
+  if(!isAppLoaded){
+    console.log('app is not loaded !, queueing message:', message);
+    lateMessages.push(message);
+    return;
+  }
 
   const options = {
     type: 'info',
@@ -231,7 +325,6 @@ const showMessage = (message) => {
 
 function log(...args){
 
-  args = args?? [''];
   
   let message = '' + args.join(' ');
 

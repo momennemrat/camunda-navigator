@@ -2,26 +2,68 @@ const electron = require('electron');
 const path = require('path');
 const BrowserWindow = electron.BrowserWindow;
 
+// Only one search modal may exist at a time. Every call used to build a fresh
+// BrowserWindow, so repeat triggers stacked windows and the caller kept a
+// reference to the newest one only, leaving the rest unreachable.
+let modalWindow = null;
+
 function openSearchModal(){
-  
-    let modalWindow = new BrowserWindow({
-    show: false,
-    webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false
+
+    if(modalWindow && !modalWindow.isDestroyed()){
+
+        if(modalWindow.isMinimized()){
+            modalWindow.restore();
+        }
+
+        modalWindow.focus();
+        return modalWindow;
     }
-    });
-    modalWindow.loadFile(path.join(__dirname , 'search-modal.html'));
 
-    modalWindow.once('ready-to-show', () => {
-        modalWindow.show();
-        //modalWindow.webContents.openDevTools();
+    const window = new BrowserWindow({
+        useContentSize: true,
+        width: 560,
+        height: 420,
+        minimizable: false,
+        maximizable: false,
+        parent: BrowserWindow.getFocusedWindow(),
+        resizable: false,
+        fullscreenable: false,
+        autoHideMenuBar: true,
+        title: 'Search definitions',
+        show: false,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false
+        }
     });
 
-    return modalWindow;
+    modalWindow = window;
+
+    window.on('closed', () => {
+        if(modalWindow === window){
+            modalWindow = null;
+        }
+    });
+
+    window.loadFile(path.join(__dirname , 'search-modal.html'));
+
+    window.once('ready-to-show', () => {
+        window.show();
+        //window.webContents.openDevTools();
+    });
+
+    return window;
+}
+
+function closeSearchModal(){
+
+    if(modalWindow && !modalWindow.isDestroyed()){
+        modalWindow.close();
+    }
 }
 
 
 module.exports = {
-	openSearchModal: openSearchModal
+	openSearchModal: openSearchModal,
+	closeSearchModal: closeSearchModal
 }

@@ -4,9 +4,19 @@ on:
   push:
     tags:
       - 'v*'
+  # Covers a release published from the GitHub UI on a tag that already exists:
+  # no tag is pushed in that case, so the push trigger above never fires.
+  release:
+    types: [published]
 
 permissions:
   contents: write
+
+# Creating a release in the UI with a NEW tag fires both triggers at once.
+# Queue them instead of letting two jobs race on the same upload.
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -52,6 +62,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" camunda-navigator.zip \
-            --title "${GITHUB_REF_NAME}" \
-            --generate-notes
+          if gh release view "${GITHUB_REF_NAME}" > /dev/null 2>&1; then
+            echo "Release ${GITHUB_REF_NAME} already exists, attaching the zip to it."
+            gh release upload "${GITHUB_REF_NAME}" camunda-navigator.zip --clobber
+          else
+            echo "Creating release ${GITHUB_REF_NAME}."
+            gh release create "${GITHUB_REF_NAME}" camunda-navigator.zip \
+              --title "${GITHUB_REF_NAME}" \
+              --notes-file .github/release-notes.md \
+              --generate-notes
+          fi

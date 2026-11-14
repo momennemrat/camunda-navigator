@@ -1,80 +1,16 @@
-<!-- modal.html -->
-
-<div class="search-box">
-  <input list="items" id="search-input" placeholder="Search models..." autofocus>
-  <datalist id="items"></datalist>
-</div>
-
-<label>
-  <input type="radio" name="type" value="bpmn" checked onchange="changeType(this.value)">
-  BPMN
-</label>
-
-<label>
-  <input type="radio" name="type" value="dmn" onchange="changeType(this.value)">
-  DMN
-</label>
-
-<script>
-    const { ipcRenderer } = require('electron');
-
-    const list = document.getElementById('items');
-    let items = [];
-
-    document.getElementById('search-input').addEventListener('change', (e) => {
-
-        const selected = items.find(item => item.name === e.target.value);
-        if (selected){
-            ipcRenderer.send('search-modal-action', selected.path);
-        }
-    });
-
-    function rebuildOptionList(type = 'bpmn'){
-
-        const options = items.filter(item => item.type == type)
-        .map(item => {
-            let option = document.createElement('option');
-            option.value = item.name;
-            option.dataset.id = item.path;
-            return option;
-        })
-        
-        list.replaceChildren(...options);
-    }
-
-    function changeType(newTypeValue){
-        rebuildOptionList(newTypeValue);
-    }
-
-    (async () => {
-    try {
-        
-        let models = [];
-        models = await ipcRenderer.invoke('get-models', null);
-
-        items = models.map(model => {
-            return {
-                name: `${model.name} (${model.id})`,
-                path: model.path,
-                type: model.type
-            }
-        });
-        
-        rebuildOptionList();
-
-    } catch (error) {
-        console.error("Error fetching data:", error);
-    }
-    })();
-
-    
-
-</script>
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Search definitions</title>
 <style>
     body {
     margin: 0;
     padding: 20px;
+    box-sizing: border-box;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
     background-color: transparent;
     font-family: -apple-system, system-ui, "Segoe UI", Roboto, Helvetica;
   }
@@ -100,4 +36,377 @@
   #search-input::placeholder {
     color: #aaa;
   }
+
+  .filters {
+    margin-top: 10px;
+    font-size: 13px;
+  }
+
+  #count {
+    float: right;
+    color: #888;
+    font-size: 12px;
+  }
+
+  #results {
+    flex: 1;
+    overflow-y: auto;
+    list-style: none;
+    margin: 10px 0 0 0;
+    padding: 0;
+    border: 1px solid #d1d1d1;
+    border-radius: 8px;
+    background: #ffffff;
+  }
+
+  .result {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .result:last-child {
+    border-bottom: none;
+  }
+
+  .result:hover {
+    background: #f4f8fe;
+  }
+
+  .result.active {
+    background: #e8f0fe;
+  }
+
+  .result-label {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 14px;
+    color: #333;
+  }
+
+  .result-type {
+    float: right;
+    font-size: 10px;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: #eee;
+    color: #555;
+  }
+
+  .result-type-bpmn {
+    background: #dff2e1;
+    color: #2e7d32;
+  }
+
+  .result-type-dmn {
+    background: #dcebfa;
+    color: #1565c0;
+  }
+
+  .result-path {
+    display: block;
+    font-size: 11px;
+    color: #888;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* rtl puts the ellipsis on the left so the end of the path stays visible */
+    direction: rtl;
+    text-align: left;
+  }
+
+  .result-path > span {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  #status {
+    min-height: 18px;
+    margin-top: 10px;
+    font-size: 13px;
+    color: #c0392b;
+  }
 </style>
+</head>
+<body>
+
+  <div class="search-box">
+    <input id="search-input" role="combobox" aria-autocomplete="list" aria-controls="results" aria-expanded="true" placeholder="Search models..." autocomplete="off" autofocus>
+  </div>
+
+  <div class="filters">
+  <label>
+    <input type="radio" name="type" value="all" accesskey="a" onchange="changeType(this.value)">
+    <u>A</u>ll
+  </label>
+
+  <label>
+    <input type="radio" name="type" value="bpmn" accesskey="b" checked onchange="changeType(this.value)">
+    <u>B</u>PMN
+  </label>
+
+  <label>
+    <input type="radio" name="type" value="dmn" accesskey="d" onchange="changeType(this.value)">
+    <u>D</u>MN
+  </label>
+
+  <span id="count"></span>
+  </div>
+
+  <ul id="results" role="listbox"></ul>
+
+  <div id="status" role="status" aria-live="polite"></div>
+
+<script>
+    const { ipcRenderer } = require('electron');
+
+    const results = document.getElementById('results');
+    const count = document.getElementById('count');
+    const input = document.getElementById('search-input');
+    const status = document.getElementById('status');
+    let items = [];
+    let currentType = 'bpmn';
+    let opened = false;
+    let visible = [];
+    let activeIndex = 0;
+
+    const MAX_RESULTS = 200;
+
+    input.addEventListener('keydown', (e) => {
+
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+
+            e.preventDefault();
+
+            if (visible.length === 0){
+                return;
+            }
+
+            const step = e.key === 'ArrowDown' ? 1 : -1;
+            const last = Math.min(visible.length, MAX_RESULTS) - 1;
+            setActive(Math.min(Math.max(activeIndex + step, 0), last));
+            return;
+        }
+
+        if (e.key === 'Enter'){
+
+            if (visible.length > 0){
+                openItem(visible[activeIndex]);
+            }
+        }
+    });
+
+    input.addEventListener('input', render);
+
+    results.addEventListener('click', (e) => {
+
+        const row = e.target.closest('.result');
+
+        if (row){
+            openItem(visible[Number(row.dataset.index)]);
+        }
+    });
+
+    // Escape closes the palette. defaultPrevented is skipped so that a key
+    // already handled elsewhere does not also close the window.
+    document.addEventListener('keydown', (e) => {
+
+        if (e.key === 'Escape' && !e.defaultPrevented){
+            window.close();
+        }
+    });
+
+    function render(){
+
+        const query = input.value.trim().toLowerCase();
+
+        const matches = items
+            .filter(matchesCurrentType)
+            .filter(item => item.search.includes(query));
+
+        // Entries that start with the query first, original order kept in each group.
+        visible = [
+            ...matches.filter(item => item.search.startsWith(query)),
+            ...matches.filter(item => !item.search.startsWith(query))
+        ];
+
+        const rows = visible.slice(0, MAX_RESULTS).map((item, index) => {
+
+            const row = document.createElement('li');
+            row.className = 'result';
+            row.setAttribute('role', 'option');
+            row.dataset.index = String(index);
+            row.id = 'result-' + index;
+            row.setAttribute('aria-selected', 'false');
+
+            const label = document.createElement('span');
+            label.className = 'result-label';
+            label.textContent = item.label;
+            label.title = item.label;
+
+            const type = document.createElement('span');
+            type.className = 'result-type result-type-' + item.type;
+            type.textContent = item.type ? item.type.toUpperCase() : '';
+
+            const itemPath = document.createElement('span');
+            itemPath.className = 'result-path';
+            const pathText = document.createElement('span');
+            pathText.textContent = item.path.replace(/\.(bpmn|dmn)$/i, '');
+            itemPath.title = item.path;
+            itemPath.appendChild(pathText);
+
+            row.append(type, label, itemPath);
+            return row;
+        });
+
+        results.replaceChildren(...rows);
+
+        activeIndex = 0;
+        if (rows.length > 0){
+            rows[0].classList.add('active');
+            rows[0].setAttribute('aria-selected', 'true');
+            input.setAttribute('aria-activedescendant', rows[0].id);
+        } else {
+            input.removeAttribute('aria-activedescendant');
+        }
+
+        if (visible.length === 0){
+            count.textContent = '';
+        } else if (visible.length > MAX_RESULTS){
+            count.textContent = 'first ' + MAX_RESULTS + ' of ' + visible.length;
+        } else {
+            count.textContent = visible.length === 1 ? '1 result' : `${visible.length} results`;
+        }
+
+        if (visible.length === 0 && query){
+            showStatus(noMatchMessage(input.value.trim()));
+        } else {
+            clearStatus();
+        }
+    }
+
+    function setActive(index){
+
+        const rows = results.children;
+
+        if (rows[activeIndex]){
+            rows[activeIndex].classList.remove('active');
+            rows[activeIndex].setAttribute('aria-selected', 'false');
+        }
+
+        activeIndex = index;
+        rows[activeIndex].classList.add('active');
+        rows[activeIndex].setAttribute('aria-selected', 'true');
+        input.setAttribute('aria-activedescendant', rows[activeIndex].id);
+        rows[activeIndex].scrollIntoView({ block: 'nearest' });
+    }
+
+    function changeType(newTypeValue){
+
+        currentType = newTypeValue;
+        render();
+        input.focus();
+    }
+
+    // BPMN is the default filter. 'all' merges both kinds into one list.
+    function matchesCurrentType(item){
+        return currentType === 'all' || item.type === currentType;
+    }
+
+    function noMatchMessage(typed){
+
+        const scope = currentType === 'all' ? 'definition' : currentType.toUpperCase() + ' definition';
+        return 'No ' + scope + ' matches "' + typed + '".';
+    }
+
+    function openItem(item){
+
+        if (opened){
+            return;
+        }
+
+        opened = true;
+        ipcRenderer.send('search-modal-action', item.path);
+    }
+
+    function showStatus(message){
+        status.textContent = message;
+    }
+
+    function clearStatus(){
+        status.textContent = '';
+    }
+
+    function showEmptyState(message, hoverText){
+
+        input.value = '';
+        input.placeholder = message;
+        input.title = hoverText || '';
+        input.disabled = true;
+    }
+
+    function clearEmptyState(){
+
+        input.placeholder = 'Search models...';
+        input.title = '';
+        input.disabled = false;
+    }
+
+    async function loadItems(){
+
+        try {
+
+            const models = await ipcRenderer.invoke('get-models', null);
+
+            items = models.map(model => {
+
+                const label = model.name ? `${model.name} (${model.id})` : model.id;
+
+                return {
+                    label: label,
+                    path: model.path,
+                    type: model.type,
+                    search: label.toLowerCase()
+                }
+            });
+
+            render();
+
+            if (items.length === 0){
+
+                const rootPath = await ipcRenderer.invoke('get-root-path');
+
+                showEmptyState(
+                    rootPath
+                        ? 'No BPMN or DMN definitions found in the root folder.'
+                        : 'No root folder set yet. Use Plugins > Camunda Navigator > Reset root folder.',
+                    rootPath || ''
+                );
+            } else {
+                clearEmptyState();
+            }
+
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            showEmptyState('Could not load the definition list.');
+        }
+    }
+
+    window.addEventListener('focus', () => {
+
+        if (items.length === 0){
+            loadItems();
+        }
+    });
+
+    loadItems();
+
+    
+
+</script>
+
+</body>
+</html>

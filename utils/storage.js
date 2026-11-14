@@ -14,15 +14,21 @@ function loadStorage(){
             return JSON.parse(fileData);
         }
     } catch(error){
-
+        console.warn('Could not read settings from ' + dataStoragePath + ': ' + error.message);
     }
     
     return {}; // Return empty object if file doesn't exist
 }
 
 function saveStorage(data){
-    const jsonString = JSON.stringify(data, null, 2); // null, 2 adds formatting
-    fs.writeFileSync(dataStoragePath, jsonString, 'utf8');
+    try {
+        const jsonString = JSON.stringify(data, null, 2); // null, 2 adds formatting
+        fs.writeFileSync(dataStoragePath, jsonString, 'utf8');
+        return true;
+    } catch(error){
+        console.warn('Could not save settings to ' + dataStoragePath + ': ' + error.message);
+        return false;
+    }
 }
 
 module.exports = {
