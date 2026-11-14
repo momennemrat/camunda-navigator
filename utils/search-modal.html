@@ -22,7 +22,6 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 1px rgba(0, 0, 0, 0.2);
     overflow: hidden;
     border: 1px solid #d1d1d1;
-    position: relative;
   }
 
   #search-input {
@@ -32,23 +31,6 @@
     border: none;
     outline: none;
     color: #333;
-  }
-
-  /* A placeholder cannot hold markup, so this overlay draws the underlined
-     access key. It only shows while the input is empty and enabled. */
-  #search-hint {
-    display: none;
-    position: absolute;
-    left: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 16px;
-    color: #aaa;
-    pointer-events: none;
-  }
-
-  #search-input:placeholder-shown:not(:disabled) + #search-hint {
-    display: block;
   }
 
   #search-input::placeholder {
@@ -152,8 +134,7 @@
 <body>
 
   <div class="search-box">
-    <input id="search-input" role="combobox" aria-autocomplete="list" aria-controls="results" aria-expanded="true" placeholder=" " accesskey="s" autocomplete="off" autofocus>
-    <span id="search-hint"><u>S</u>earch models...</span>
+    <input id="search-input" role="combobox" aria-autocomplete="list" aria-controls="results" aria-expanded="true" placeholder="Search models..." autocomplete="off" autofocus>
   </div>
 
   <div class="filters">
@@ -369,7 +350,7 @@
 
     function clearEmptyState(){
 
-        input.placeholder = ' ';
+        input.placeholder = 'Search models...';
         input.title = '';
         input.disabled = false;
     }
