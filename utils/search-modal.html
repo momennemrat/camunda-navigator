@@ -161,14 +161,13 @@
   <div id="status" role="status" aria-live="polite"></div>
 
 <script>
-    const { ipcRenderer } = require('electron');
-
     const results = document.getElementById('results');
     const count = document.getElementById('count');
     const input = document.getElementById('search-input');
     const status = document.getElementById('status');
     let items = [];
     let currentType = 'bpmn';
+    let loading = true;
     let opened = false;
     let visible = [];
     let activeIndex = 0;
@@ -209,9 +208,7 @@
             openItem(visible[Number(row.dataset.index)]);
         }
     });
-
-    // Escape closes the palette. defaultPrevented is skipped so that a key
-    // already handled elsewhere does not also close the window.
+    
     document.addEventListener('keydown', (e) => {
 
         if (e.key === 'Escape' && !e.defaultPrevented){
@@ -220,6 +217,16 @@
     });
 
     function render(){
+        
+        if (loading){
+            results.replaceChildren();
+            count.textContent = '';
+            input.removeAttribute('aria-activedescendant');
+            visible = [];
+            activeIndex = 0;
+            showStatus('Indexing definitions...');
+            return;
+        }
 
         const query = input.value.trim().toLowerCase();
 
@@ -227,7 +234,6 @@
             .filter(matchesCurrentType)
             .filter(item => item.search.includes(query));
 
-        // Entries that start with the query first, original order kept in each group.
         visible = [
             ...matches.filter(item => item.search.startsWith(query)),
             ...matches.filter(item => !item.search.startsWith(query))
@@ -311,7 +317,6 @@
         input.focus();
     }
 
-    // BPMN is the default filter. 'all' merges both kinds into one list.
     function matchesCurrentType(item){
         return currentType === 'all' || item.type === currentType;
     }
@@ -329,7 +334,7 @@
         }
 
         opened = true;
-        ipcRenderer.send('search-modal-action', item.path);
+        window.navigatorApi.openModel(item.path);
     }
 
     function showStatus(message){
@@ -359,7 +364,7 @@
 
         try {
 
-            const models = await ipcRenderer.invoke('get-models', null);
+            const models = await window.navigatorApi.getModels();
 
             items = models.map(model => {
 
@@ -377,7 +382,7 @@
 
             if (items.length === 0){
 
-                const rootPath = await ipcRenderer.invoke('get-root-path');
+                const rootPath = await window.navigatorApi.getRootPath();
 
                 showEmptyState(
                     rootPath
@@ -392,6 +397,15 @@
         } catch (error) {
             console.error("Error fetching data:", error);
             showEmptyState('Could not load the definition list.');
+        } finally {
+
+            loading = false;
+            
+            if (input.disabled){
+                clearStatus();
+            } else {
+                render();
+            }
         }
     }
 
@@ -401,7 +415,8 @@
             loadItems();
         }
     });
-
+    
+    render();
     loadItems();
 
     

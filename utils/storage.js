@@ -17,12 +17,12 @@ function loadStorage(){
         console.warn('Could not read settings from ' + dataStoragePath + ': ' + error.message);
     }
     
-    return {}; // Return empty object if file doesn't exist
+    return {};
 }
 
 function saveStorage(data){
     try {
-        const jsonString = JSON.stringify(data, null, 2); // null, 2 adds formatting
+        const jsonString = JSON.stringify(data, null, 2);
         fs.writeFileSync(dataStoragePath, jsonString, 'utf8');
         return true;
     } catch(error){

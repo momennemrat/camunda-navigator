@@ -1,70 +1,106 @@
 const fs = require('fs');
 
+const READ_CONCURRENCY = 8;
+const TAG_ATTRIBUTES = '((?:\\s+[A-Za-z0-9_.:-]+\\s*=\\s*(?:"[^"]*"|\'[^\']*\'))*)\\s*/?>';
+const PROCESS_TAG = new RegExp('<(?:[A-Za-z0-9_.-]+:)?process' + TAG_ATTRIBUTES, 'g');
+const DECISION_TAG = new RegExp('<(?:[A-Za-z0-9_.-]+:)?decision' + TAG_ATTRIBUTES, 'g');
+const ID_ATTRIBUTE = /(?:^|\s)id\s*=\s*(?:"([^"]*)"|'([^']*)')/;
+const NAME_ATTRIBUTE = /(?:^|\s)name\s*=\s*(?:"([^"]*)"|'([^']*)')/;
 
-const analyzeCamundafiles = (filePaths) => {
 
-    //you need to filter
-    //then know the type
+const analyzeCamundafiles = async (filePaths) => {
+    
+    const filteredPaths = filePaths.filter(path => path.endsWith('.dmn') || path.endsWith('.bpmn'));
+    const perFile = new Array(filteredPaths.length).fill(null);
+    let next = 0;
 
-    const filteredPaths = filePaths.filter(path => path.endsWith('.dmn') || path.endsWith('.bpmn'))
+    const worker = async () => {
 
-    let fileModels = filteredPaths.map(path => {
+        while(true){
 
-        const content = readFileContent(path);
-        if(content == null){
-            return null;
-        }
-        const fileType = path.endsWith('.dmn')? 'dmn': 'bpmn';
-        let founds = null;
-        let models = [];
+            const index = next++;
 
-        if(fileType == 'bpmn'){
-            founds = [...content.matchAll(/<bpmn:process[ ]+id="([^"]*)"(?:[ ]+name="([^"]*))?/g)];
-        } else if(fileType == 'dmn') {
-            founds = [...content.matchAll(/<decision id="([^"]*)"(?:[ ]+name="([^"]*))?/g)];
-        }
+            if(index >= filteredPaths.length){
+                return;
+            }
 
-        if(founds?.length){
-            models = founds.map(found => {
+            const filePath = filteredPaths[index];
+            const content = await readFileContent(filePath);
+
+            if(content == null){
+                continue;
+            }
+
+            const fileType = filePath.endsWith('.dmn')? 'dmn': 'bpmn';
+
+            perFile[index] = extractModels(content, fileType).map(found => {
 
                 return {
-                    id: found[1],
-                    name: found[2],
-                    path: path,
+                    id: found.id,
+                    name: found.name,
+                    path: filePath,
                     type: fileType,
                 }
-            })
+            });
         }
+    };
 
-        return {
-            path: path,
-            type: fileType,
-            models: models,
-        }
-    })
-    .filter(fileModel => fileModel);
+    const workerCount = Math.min(READ_CONCURRENCY, filteredPaths.length);
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
-    const unreadableCount = filteredPaths.length - fileModels.length;
+    const unreadableCount = perFile.filter(entry => entry === null).length;
     if(unreadableCount > 0){
         console.warn('Skipped ' + unreadableCount + ' unreadable BPMN/DMN file(s).');
     }
 
-    let models = fileModels.map(fileModel => fileModel.models).flat();
-
-
-    return models;
+    return perFile.filter(entry => entry !== null).flat();
 }
 
-
-// One unreadable file must not abort indexing the whole folder.
-const readFileContent = (filePath)=> {
+const readFileContent = async (filePath)=> {
 
     try {
-        return fs.readFileSync(filePath, {encoding: 'utf-8'});
+        return await fs.promises.readFile(filePath, {encoding: 'utf-8'});
     } catch(error){
         console.warn('Cannot read file, skipping: ' + filePath + ' (' + error.message + ')');
         return null;
     }
+}
+
+const attributeValue = (pattern, attributes) => {
+
+    const match = pattern.exec(attributes);
+
+    if(match == null){
+        return undefined;
+    }
+
+    return match[1] !== undefined ? match[1] : match[2];
+}
+
+const extractModels = (content, fileType) => {
+
+    const tagPattern = fileType == 'dmn' ? DECISION_TAG : PROCESS_TAG;
+    tagPattern.lastIndex = 0;
+
+    const found = [];
+    let match;
+
+    while((match = tagPattern.exec(content)) !== null){
+
+        const attributes = match[1] || '';
+        const id = attributeValue(ID_ATTRIBUTE, attributes);
+
+        if(id === undefined){
+            continue;
+        }
+
+        found.push({
+            id: id,
+            name: attributeValue(NAME_ATTRIBUTE, attributes)
+        });
+    }
+
+    return found;
 }
 
 

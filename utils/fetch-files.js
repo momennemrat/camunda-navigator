@@ -4,7 +4,7 @@ const path = require('path');
 
 const DEFAULT_MAX_DEPTH = 20;
 const DEFAULT_EXCLUDED_FOLDERS = [];
-const DEFAULT_EXTENSIONS = null;   // null means: collect every file
+const DEFAULT_EXTENSIONS = null;
 
 const ErrorMessages = {
     pathNotExist: (target) => 'Path does not exist: ' + target,
@@ -21,7 +21,6 @@ const fetchDeepFileNames = (folderPath, options = {}) => {
         ? extensions.map(ext => ext.toLowerCase())
         : null;
 
-    // The root folder is a hard requirement, so an invalid one throws.
     errorIfPathNotExist(folderPath);
     errorIfNotFolder(folderPath);
 
@@ -38,7 +37,6 @@ const readFolderRecursion = (folderPath, depth, excluded, visitedFolders, allowe
         return [];
     }
 
-    // Guards against symlink loops pointing back up the tree.
     const realPath = safeRealPath(folderPath);
     if(realPath == null || visitedFolders.has(realPath)){
         return [];
@@ -49,7 +47,6 @@ const readFolderRecursion = (folderPath, depth, excluded, visitedFolders, allowe
     try {
         entries = fs.readdirSync(folderPath, { withFileTypes: true });
     } catch(error){
-        // A single unreadable sub-folder must not abort the whole scan.
         console.warn('Cannot read folder, skipping: ' + folderPath + ' (' + error.message + ')');
         return [];
     }
@@ -81,7 +78,6 @@ const readFolderRecursion = (folderPath, depth, excluded, visitedFolders, allowe
     return files;
 }
 
-// Dirent reports symlinks as neither file nor folder, so resolve those explicitly.
 const isFolderEntry = (entry, fullPath) => {
 
     if(entry.isDirectory()){
@@ -116,7 +112,6 @@ const errorIfPathNotExist = (target) => {
 }
 
 const errorIfNotFolder = (target) => {
-    // statSync (not lstatSync) so a symlinked root folder is still accepted.
     if(!fs.statSync(target).isDirectory()){
         throw new Error(ErrorMessages.notAFolder(target));
     }
